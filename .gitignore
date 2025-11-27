@@ -1,0 +1,127 @@
+# local vector db
+vector-db/volumes
+
+#
+models
+
+
+# Ignore everything under data
+data/raw/
+data/parsed/**
+data/*.zip
+*.coco
+#
+# ignore app/cache
+app/cache/*
+# 
+*.db
+# allow json in parsed for the benefit of not paying
+# !data/parsed/*.json
+!data/raw/*.pdf
+!data/raw/*.jpg
+# !data/**/*.json
+*kreston*
+data/*.jpg
+
+# some local shit that sohuld not be commited
+20115551_20250730_123730.json
+Invoice-2YRJM3OB-0002.pdf*
+.vscode/
+#
+wip/
+
+# fastapi app stuff
+/app/parsed
+
+# docx
+*.docx
+
+# pixi environments
+.pixi
+*.egg-info
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+debug.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+# notebooks
+# *.ipynb
+
+# pytest
+.cache
+
+# mypy
+.mypy_cache/
+.dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# vscode workspace
+*.code-workspace
+
+# Local env
+.env
+.venv
+ENV/
+venv/
+
+# Tokenizer and large data files
+tokenizer.json
+
+# Ignore all __pycache__ folders recursively
+**/__pycache__/ 
