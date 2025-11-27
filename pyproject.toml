@@ -1,0 +1,53 @@
+[project]
+authors = [{ name = "Demir Tonchev", email = "tonchev.demir@gmail.com" }]
+name = "yorgan"
+requires-python = ">=3.12,<3.14"
+version = "0.1.0"
+dependencies = ["pydantic>=2.11.7,<3", "landingai-ade>=0.18.2,<0.19", "google-adk>=1.16.0,<2", "aiocache[redis]>=0.12.3,<1", "redis>=7.1.0,<8", "orjson>=3.11.4,<4", "fastapi[standard]>=0.118.3,<1"]
+
+
+[project.optional-dependencies]
+openai = ["openai"]
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+# [tool.pixi.pypi-dependencies]
+# yorgan = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.environments]
+dev = { features = ["dev", "openai"], solve-group = "default" }
+prod = { features = ["prod"], solve-group = "default" }
+
+[tool.pixi.feature.dev.tasks]
+test = "pytest -vv"
+server = "uvicorn app.main:app --port 8000"
+
+[tool.pixi.feature.dev.pypi-dependencies]
+yorgan = { path = ".", editable = true }
+
+[tool.pixi.feature.dev.dependencies]
+ipykernel = ">=6.30.1,<7"
+
+
+[tool.pixi.feature.prod.dependencies]
+hatchling = "*"
+pip = "*"
+
+# this is so terrible
+[tool.pixi.feature.prod.tasks]
+postinstall = "pip install --no-build-isolation --no-deps --disable-pip-version-check ."
+
+
+[tool.pixi.dependencies]
+
+[dependency-groups]
+dev = ["pytest", "pymupdf>=1.26.5,<2"]
+openai = ["openai"]

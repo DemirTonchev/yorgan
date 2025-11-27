@@ -1,0 +1,114 @@
+# our project stuff
+jupyter/
+data/
+checkpoints/
+wip/
+vector-db/
+
+# models
+/models
+
+# tests
+tests/
+
+# pixi
+.pixi
+
+# Environment
+**/.env*
+# .env.docker
+
+# Virtual environment
+.venv/
+venv/
+
+.venv/
+venv/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+
+# CI
+.codeclimate.yml
+.travis.yml
+.taskcluster.yml
+
+# Docker
+# docker-compose.yml
+# Dockerfile
+# .docker
+# .dockerignore
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+
+# C extensions
+*.so
+
+# Distribution / packaging
+*.ipynb
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+.pytest*
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+
+# PyCharm
+.idea
+
+# Python mode for VIM
+.ropeproject
+**/.ropeproject
+
+# Vim swap files
+**/*.swp
+
+# VS Code
+.vscode/
+*.code-workspace
