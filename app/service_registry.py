@@ -17,8 +17,8 @@ T = TypeVar("T", bound=BaseModel)
 _registy = ServiceRegistries()
 
 
-ParseServiceOptions = StrEnum("ParseServiceOptions", "auto " + " ".join(_registy.parse.list_modules()))
-ExctractServiceOptions = StrEnum("ExctractServiceOptions", "auto " + " ".join(_registy.structured.list_modules()))
+ParseServiceOptions = StrEnum("ParseServiceOptions", " ".join(_registy.parse.list_modules()))
+ExctractServiceOptions = StrEnum("ExctractServiceOptions", " ".join(_registy.structured.list_modules()))
 ParseExctractServiceOptions = StrEnum("ParseExctractServiceOptions", " ".join(_registy.parse_extract.list_modules()))
 
 
