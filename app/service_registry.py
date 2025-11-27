@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Annotated, Any, Optional, TYPE_CHECKING, Type, TypeVar, overload, Literal, cast
 from pydantic import BaseModel
 from enum import StrEnum
-from yorgan.services import ParseService, StructuredOutputService, ParseExtractService
+from yorgan.services.base import ParseService, StructuredOutputService, ParseExtractService
 from yorgan.services.registry import ServiceRegistries
 
 if TYPE_CHECKING:
