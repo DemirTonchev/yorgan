@@ -11,7 +11,7 @@ T = TypeVar("T", bound=BaseService)
 
 
 @dataclass
-class RegisteredService(Generic[T]):
+class RegisteredServiceInfo(Generic[T]):
     module: str
     service: type[T]
 
@@ -20,7 +20,7 @@ class Registry(Generic[T]):
     """Registry for Service subclasses with dynamic discovery"""
 
     def __init__(self) -> None:
-        self._registry: dict[str, RegisteredService[T]] = {}
+        self._registry: dict[str, RegisteredServiceInfo[T]] = {}
 
     def register(self, service_class: type[T], name: Optional[str] = None) -> None:
         """
@@ -29,7 +29,7 @@ class Registry(Generic[T]):
         # we expect all services to be inherited from BaseService and have service_name but __qualname__ allows protocol class
         service_name = name or getattr(service_class, 'service_name', service_class.__qualname__)
 
-        self._registry[service_name] = RegisteredService(
+        self._registry[service_name] = RegisteredServiceInfo(
             module=service_class.__module__.rsplit('.', 1)[-1],
             service=service_class
         )
@@ -50,11 +50,11 @@ class Registry(Generic[T]):
         return [v.module for v in self._registry.values()]
 
     @lru_cache(maxsize=3)
-    def get_module_members(self, module: str) -> list[RegisteredService[T]]:
+    def get_module_members(self, module: str) -> list[RegisteredServiceInfo[T]]:
         return [v for v in self._registry.values() if v.module == module]
 
     @lru_cache(maxsize=1)
-    def get_module_memebers_map(self) -> dict[str, list[RegisteredService[T]]]:
+    def get_module_memebers_map(self) -> dict[str, list[RegisteredServiceInfo[T]]]:
         registered_modules = self.list_modules()
         return {mod: self.get_module_members(mod) for mod in registered_modules}
 
@@ -63,11 +63,11 @@ class Registry(Generic[T]):
         registered_modules = self.list_modules()
         return {mod: [member.service for member in self.get_module_members(mod)] for mod in registered_modules}
 
-    def get(self, service_name: str) -> RegisteredService[T]:
+    def get(self, service_name: str) -> RegisteredServiceInfo[T]:
         """Get a registered service by name"""
         return self._registry[service_name]
 
-    def get_all(self) -> dict[str, RegisteredService[T]]:
+    def get_all(self) -> dict[str, RegisteredServiceInfo[T]]:
         """Get all registered services"""
         return self._registry.copy()
 
