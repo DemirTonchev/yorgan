@@ -157,8 +157,9 @@ def cache_result(key_params: list[str]) -> Callable:
                     print(f"------ cache hit with key {cache_key}")
             else:
                 value = await func(self, *args, **kwargs)
-                if is_dev_env():
+                if is_dev_env() and not isinstance(self.cache, NullCache):
                     print(f"------ storing value for key {cache_key}")
+
                 await self.cache.set(key=cache_key, value=value, namespace=ns)
 
             return value
