@@ -112,7 +112,7 @@ Document:
         """
         Generates a structured Pydantic object from a parsed document.
         """
-        prompt = self.prompt.format(parse_response_markdown=parse_response.markdown)
+        prompt = self.format_prompt(parse_response=parse_response)
 
         # client.aio uses async stuff
         response = await self.client.aio.models.generate_content(
