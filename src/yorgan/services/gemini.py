@@ -96,7 +96,7 @@ class GeminiStructuredOutputService(LLMStructuredOutputService[T]):
     ):
         if prompt is None:
             prompt = """\
-You are an accountant that extracts information from documents. Please look at this document and extract the needed information.
+You extract structured information from documents. Review the following document and return the extracted data in the specified format.
 Document:
 {parse_response_markdown}
 """
