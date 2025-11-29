@@ -6,7 +6,7 @@ from google.genai import types
 from .base import (
     ParseService,
     ParseResponse,
-    StructuredOutputService,
+    LLMStructuredOutputService,
     ParseExtractService,
     BaseModel
 )
@@ -81,7 +81,7 @@ class GeminiParseService(ParseService[ParseResponse]):
         return cast(ParseResponse, parsed_document)
 
 
-class GeminiStructuredOutputService(StructuredOutputService[T]):
+class GeminiStructuredOutputService(LLMStructuredOutputService[T]):
     """
     A structured output Service implementation using Gemini.
     """
@@ -94,16 +94,14 @@ class GeminiStructuredOutputService(StructuredOutputService[T]):
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None
     ):
-        super().__init__(response_type=response_type, cache=cache)
-        self.client = client if client is not None else get_default_client()
-        self.model = model
         if prompt is None:
             prompt = """\
 You are an accountant that extracts information from documents. Please look at this document and extract the needed information.
 Document:
 {parse_response_markdown}
 """
-        self.prompt = prompt
+        super().__init__(response_type=response_type, cache=cache, model=model, prompt=prompt)
+        self.client = client if client is not None else get_default_client()
 
     @override
     async def extract(

@@ -87,6 +87,28 @@ class StructuredOutputService(BaseService[T]):
         return await self.extract(filename, parse_response, **kwargs)
 
 
+class LLMStructuredOutputService(StructuredOutputService[T]):
+    """
+    Abstract base for structured output services that use an LLM with a prompt template.
+    """
+    DEFAULT_PROMPT: str = """\
+You extracts information from documents. Please look at this document and extract the needed information.
+Document:
+{parse_response_markdown}
+"""
+
+    def __init__(
+        self,
+        response_type: Type[T],
+        model: str,
+        prompt: Optional[str] = None,
+        cache: OptionalCacheType = None,
+    ):
+        super().__init__(response_type=response_type, cache=cache)
+        self.model = model
+        self.prompt = prompt if prompt is not None else self.DEFAULT_PROMPT
+
+
 R = TypeVar("R", bound=BaseModel, covariant=True)
 
 
