@@ -108,6 +108,10 @@ Document:
         self.model = model
         self.prompt = prompt if prompt is not None else self.DEFAULT_PROMPT
 
+    def format_prompt(self, parse_response: ParseResponse) -> str:
+        """Format the prompt template with the parsed document content."""
+        return self.prompt.format(parse_response_markdown=parse_response.markdown)
+
 
 R = TypeVar("R", bound=BaseModel, covariant=True)
 
