@@ -5,7 +5,7 @@ import openai
 from .base import (
     ParseService,
     ParseResponse,
-    StructuredOutputService,
+    LLMStructuredOutputService,
     ParseExtractService,
     BaseModel
 )
@@ -97,7 +97,7 @@ class OpenAIParseService(ParseService[ParseResponse]):
         return parsed_document
 
 
-class OpenAIStructuredOutputService(StructuredOutputService[T]):
+class OpenAIStructuredOutputService(LLMStructuredOutputService[T]):
     """
     A structured output Service implementation using OpenAI.
     """
@@ -110,16 +110,14 @@ class OpenAIStructuredOutputService(StructuredOutputService[T]):
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None
     ):
-        super().__init__(response_type=response_type, cache=cache)
-        self.client = client if client is not None else get_default_client()
-        self.model = model
         if prompt is None:
             prompt = """\
-You extract structured information from documents.Review the following document and return the extracted data in the specified format.
+You extract structured information from documents. Review the following document and return the extracted data in the specified format.
 Document:
 {parse_response_markdown}
 """
-        self.prompt = prompt
+        super().__init__(response_type=response_type, cache=cache, model=model, prompt=prompt)
+        self.client = client if client is not None else get_default_client()
 
     @override
     async def extract(
@@ -216,7 +214,8 @@ You extract structured information from documents.Review the following document 
             ],
             text_format=self.response_type,
         )
-        # TODO: future bookkeeping
+        # for bookkeeping purposes at some point like
+        # metadata - token counts etc.. whatever the api returns and we might want to log
         self._last_raw_response = response
 
         structured_output = response.output_parsed
