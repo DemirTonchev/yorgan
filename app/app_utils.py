@@ -1,13 +1,4 @@
-from pathlib import Path
-import hashlib
+from yorgan.cache import generate_hashed_filename
 
-
-def generate_hashed_filename(filename: Path | str, content: bytes, digest_size=4) -> str:
-    """Generates deterministic output. Collision probability depends on digest_size.
-    Outputs mime type guessing friendly filename.
-    """
-    filename = Path(filename)
-    hex_str = hashlib.blake2b(str(filename).encode() + content, digest_size=digest_size).hexdigest()
-    filename_key = filename.stem + "-" + hex_str + filename.suffix
-    return filename_key
-
+# fix unused import error
+generate_hashed_filename = generate_hashed_filename

@@ -6,6 +6,7 @@ import functools
 import inspect
 import os
 from pathlib import Path
+import hashlib
 
 from aiocache import BaseCache, SimpleMemoryCache
 from aiocache.base import _ensure_key
@@ -167,3 +168,13 @@ def cache_result(key_params: list[str]) -> Callable:
         return wrapper
 
     return decorator
+
+
+def generate_hashed_filename(filename: Path | str, content: bytes, digest_size=4) -> str:
+    """Generates deterministic output. Collision probability depends on digest_size.
+    Outputs mime type guessing friendly filename.
+    """
+    filename = Path(filename)
+    hex_str = hashlib.blake2b(str(filename).encode() + content, digest_size=digest_size).hexdigest()
+    filename_key = filename.stem + "-" + hex_str + filename.suffix
+    return filename_key
