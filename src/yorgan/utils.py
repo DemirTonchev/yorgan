@@ -264,6 +264,7 @@ def flat_json_schema_to_pydantic_model(schema: dict[str, Any], model_config=None
 
     properties = schema.get("properties", {})
     model_fields = {}
+    required_fields = set(schema.get("required", []))
 
     def process_field(field_name, field_props: dict[str, Any]) -> tuple:
         """Recursively processes a field and returns its type and Field instance."""
@@ -320,7 +321,13 @@ def flat_json_schema_to_pydantic_model(schema: dict[str, Any], model_config=None
 
         field_options = {}
 
-        field_options['default'] = field_props.get("default", ...)
+        default_value = field_props.get("default")
+        is_required = field_name in required_fields
+
+        if not is_required and default_value is None:
+            field_type = Optional[field_type]
+
+        field_options['default'] = default_value if not is_required else ...
         field_options['description'] = field_props.get("description")
         return field_type, Field(**field_options)
 
@@ -328,6 +335,8 @@ def flat_json_schema_to_pydantic_model(schema: dict[str, Any], model_config=None
     for field_name, field_props in properties.items():
         model_fields[field_name] = process_field(field_name, field_props)
 
+    model = create_model(schema.get("title", "GeneratedModel"), **model_fields, __config__=model_config)
+    model.model_rebuild()
     return create_model(schema.get("title", "GeneratedModel"), **model_fields, __config__=model_config)
 
 
