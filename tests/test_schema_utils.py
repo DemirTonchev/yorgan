@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -9,7 +9,7 @@ import pytest
 
 class UserRole(Enum):
     ADMIN = "admin"
-    VIEWER = "viewer"
+    USER = "user"
 
 
 class Address(BaseModel):
@@ -37,7 +37,7 @@ user_profile_schema = {'properties':
                            'default': 18,
                            'title': 'Age'},
                            'role': {
-                           'enum': ['admin', 'viewer'], 'title': 'UserRole', 'type': 'string'},
+                           'enum': ['admin', 'user'], 'title': 'UserRole', 'type': 'string'},
                            'contact': {
                            'items': {
                                'anyOf': [
@@ -147,7 +147,7 @@ def test_json_schema_to_base_model_creation():
                                  {
                                      'username': 'testuser',
                                      'age': 20,
-                                     'role': 'viewer',
+                                     'role': 'user',
                                      'contact': ['real street', {'street': 'krum', 'city': 'sofia'}]
                                  },
                                  UserProfile
@@ -223,3 +223,19 @@ def test_dynamic_model_field_types(schema, pure_model):
 
     assert set(dyn_fields.keys()) == set(orig_fields.keys())
     assert resolve_openAPI_json_schema(DynamicModel.model_json_schema()) == resolve_openAPI_json_schema(pure_model.model_json_schema())
+
+
+def test_required_field_optional_behavior():
+    DynamicModel = flat_json_schema_to_pydantic_model(user_profile_schema)
+
+    # Missing all required fields: should fail
+    with pytest.raises(ValidationError):
+        DynamicModel()
+    with pytest.raises(ValidationError):
+        DynamicModel(username="testuser", role="admin")
+
+    # All required fields present, optional omitted
+    instance = DynamicModel(username="testuser", role="admin", contact=["foo"])
+
+    # All required and optional fields present
+    instance2 = DynamicModel(username="testuser", role="user", contact=["bar"], age=42)
