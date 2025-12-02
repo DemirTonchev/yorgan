@@ -15,7 +15,7 @@ class ParseResponse(BaseModel):
     markdown: str
 
 
-class ParseResponsewMetaData(ParseResponse):
+class ParseResponseMetaData(ParseResponse):
     metadata: Metadata = Field(default=Metadata())
 
 

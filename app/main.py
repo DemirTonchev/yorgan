@@ -23,7 +23,7 @@ from aiocache import RedisCache
 from aiocache.serializers import PickleSerializer
 
 from yorgan.cache import SimpleMemoryCacheWithPersistence
-from yorgan.datamodels import ParseResponse, ParseResponsewMetaData
+from yorgan.datamodels import ParseResponse, ParseResponseMetaData
 from yorgan.services.gemini import (
     GeminiStructuredOutputService,
 )
@@ -40,7 +40,7 @@ from app.service_registry import (
 )
 
 
-class APIParseResponse(ParseResponsewMetaData):
+class APIParseResponse(ParseResponseMetaData):
 
     model_config = ConfigDict(extra="allow")
 
