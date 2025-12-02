@@ -49,5 +49,5 @@ postinstall = "pip install --no-build-isolation --no-deps --disable-pip-version-
 [tool.pixi.dependencies]
 
 [dependency-groups]
-dev = ["pytest", "pymupdf>=1.26.5,<2"]
+dev = ["pytest", "pytest-asyncio", "pymupdf>=1.26.5,<2"]
 openai = ["openai"]
