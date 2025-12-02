@@ -261,7 +261,6 @@ async def parse_extract(
 
     content = await file.read()
     filename = file.filename
-    mime_type = file.content_type  # could be None
     try:
         ExtractionModel = json_schema_to_pydantic_model(json_loads(schema))
     except (JSONDecodeError, ) as e:
@@ -278,7 +277,7 @@ async def parse_extract(
 
     filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + content)
 
-    structured_output = await parse_extract_service(filename=filename_key, content=content, mime_type=mime_type)
+    structured_output = await parse_extract_service(filename=filename_key, content=content)
     metadata = {
         "filename": filename,
         "used_service": parse_extract_service.service_name,
