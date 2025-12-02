@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Metadata(BaseModel):
@@ -17,6 +17,29 @@ class ParseResponse(BaseModel):
 
 class ParseResponseMetaData(ParseResponse):
     metadata: Metadata = Field(default=Metadata())
+
+
+class APIParseResponse(ParseResponseMetaData):
+
+    model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="after")
+    def debug_usage(self):
+        print("created pydantic model")
+
+        return self
+
+
+class APIExtractResponse[T](BaseModel):
+
+    extraction: T
+    metadata: dict[str, Any]
+
+    @model_validator(mode="after")
+    def debug_usage(self):
+        print("created pydantic model")
+
+        return self
 
 
 class CompanyInfo(BaseModel):

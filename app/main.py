@@ -24,6 +24,7 @@ from aiocache.serializers import PickleSerializer
 
 from yorgan.cache import SimpleMemoryCacheWithPersistence
 from yorgan.datamodels import ParseResponse, ParseResponseMetaData
+from yorgan.datamodels import APIParseResponse, APIExtractResponse
 from yorgan.services.gemini import (
     GeminiStructuredOutputService,
 )
@@ -40,29 +41,6 @@ from app.service_registry import (
 )
 
 
-class APIParseResponse(ParseResponseMetaData):
-
-    model_config = ConfigDict(extra="allow")
-
-    @model_validator(mode="after")
-    def debug_usage(self):
-        print("created pydantic model")
-
-        return self
-
-
-class APIExtractResponse[T](BaseModel):
-
-    extraction: T
-    metadata: dict[str, Any]
-
-    @model_validator(mode="after")
-    def debug_usage(self):
-        print("created pydantic model")
-
-        return self
-
-
 # turn off logging to gemini and other outbound services
 # logging.getLogger("httpx").setLevel(logging.ERROR)
 
@@ -71,7 +49,6 @@ class APIExtractResponse[T](BaseModel):
 # needs to be cli param
 CACHE = SimpleMemoryCacheWithPersistence(persist_dir=Path(__file__).parent / './cache/parsed')
 # CACHE = RedisCache(serializer=PickleSerializer())
-
 
 
 @asynccontextmanager
