@@ -1,24 +1,31 @@
 import pytest
 import httpx
-
+import json
+from pydantic import BaseModel
 from yorgan.client import YorganSyncClient, YorganAsyncClient
 from yorgan.datamodels import ParseResponse
 
+
 # Fake responses keyed by path suffix
 RESPONSES = {
-    "/parse": {"markdown": "# Title", "metadata": {"filename": "doc.pdf", "duration_ms": 1000}},
-    "/extract": {"extraction": {"markdown": "# Title"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiStructuredOutputService"}},
-    "/parse-extract": {"extraction": {"markdown": "# Title"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiParseExtractService"}},
+    "/parse": {"markdown": "# Title: Yorgan", "metadata": {"filename": "doc.pdf", "duration_ms": 1000}},
+    "/extract": {"extraction": {"title": "Yorgan"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiStructuredOutputService"}},
+    "/parse-extract": {"extraction": {"title": "Yorgan"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiParseExtractService"}},
     "/schema/validate": {"success": True, "message": "Schema is valid"},
     "/options": {"parse": ["gemini", "landingai", "openai"], "extract": ["gemini", "openai"], "parse-extract": ["gemini", "openai"]},
     "/info": {"version": "1.0.0"},
 }
 
 
+class Extraction(BaseModel):
+    title: str
+
+
 class FakeResponse:
     def __init__(self, data, status_code: int = 200):
         self._data = data
         self.status_code = status_code
+        self.text = json.dumps(data)
 
     def json(self):
         return self._data
@@ -87,22 +94,22 @@ def test_sync_client_endpoints(monkeypatch, tmp_path):
     client = YorganSyncClient(base_url="http://fake")
 
     # parse
-    parsed = client.parse(document=fpath)
+    parsed = client.parse(document=fpath, option="any")
     assert isinstance(parsed, ParseResponse)
-    assert parsed.markdown == "# Title"
+    assert parsed.markdown == "# Title: Yorgan"
     assert parsed.metadata.filename == "doc.pdf"
     assert parsed.metadata.duration_ms == 1000
 
     # extract (use markdown + response_model)
-    extracted = client.extract(markdown="# hello", response_model=ParseResponse)
+    extracted = client.extract(markdown="# hello", response_model=Extraction)
     # The fake extract returns extraction.markdown == "# Title"
-    assert extracted.extraction["markdown"] == "# Title"
+    assert extracted.extraction["title"] == "Yorgan"
     assert extracted.metadata["filename"] == "doc.pdf"
     assert extracted.metadata["used_service"] == "GeminiStructuredOutputService"
 
     # parse_extract
     parsed_extracted = client.parse_extract(document=fpath, response_model=ParseResponse)
-    assert parsed_extracted.extraction["markdown"] == "# Title"
+    assert parsed_extracted.extraction["title"] == "Yorgan"
     assert parsed_extracted.metadata["used_service"] == "GeminiParseExtractService"
 
     # validate_schema
@@ -127,17 +134,17 @@ async def test_async_client_endpoints(monkeypatch, tmp_path):
     fpath.write_bytes(b"dummy-async")
 
     async with YorganAsyncClient(base_url="http://fake") as client:
-        parsed = await client.parse(document=fpath)
+        parsed = await client.parse(document=fpath, option="any")
         assert isinstance(parsed, ParseResponse)
-        assert parsed.markdown == "# Title"
+        assert parsed.markdown == "# Title: Yorgan"
         assert parsed.metadata.filename == "doc.pdf"
 
-        extracted = await client.extract(markdown="# hello", response_model=ParseResponse)
-        assert extracted.extraction["markdown"] == "# Title"
+        extracted = await client.extract(markdown="# hello", response_model=Extraction)
+        assert extracted.extraction["title"] == "Yorgan"
         assert extracted.metadata["used_service"] == "GeminiStructuredOutputService"
 
-        parsed_extracted = await client.parse_extract(document=fpath, response_model=ParseResponse)
-        assert parsed_extracted.extraction["markdown"] == "# Title"
+        parsed_extracted = await client.parse_extract(document=fpath, response_model=Extraction)
+        assert parsed_extracted.extraction["title"] == "Yorgan"
         assert parsed_extracted.metadata["used_service"] == "GeminiParseExtractService"
 
         v = await client.validate_schema({"type": "object"})
