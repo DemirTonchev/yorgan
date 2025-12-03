@@ -105,10 +105,10 @@ FORMAT_MAPPING: dict[str, Any] = {
 
 
 class SchemaDict(TypedDict, total=False):
-    properties: dict
-    required: list
+    properties: dict[str, Any]
+    required: list[str]
     title: str
-    type: str
+    type: Literal["object"]
 
 
 def _resolve_references(openapi_spec: Dict[str, Any]) -> Dict[str, Any]:

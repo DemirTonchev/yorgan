@@ -45,6 +45,7 @@ class GeminiParseService(ParseService[ParseResponse]):
         if prompt is None:
             prompt = """Your task is to extract the text from the attached document. Format it nicely as a markdown."""
         self.prompt = prompt
+        self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
 
     @override
     async def parse(
@@ -57,6 +58,9 @@ class GeminiParseService(ParseService[ParseResponse]):
 
         # Determine the MIME type based on the file extension
         mime_type = get_mime_type(filename)
+
+        if (extention := mime_type.split("/")[-1]) not in self._supported_file_types:
+            raise ValueError(f"Gemini: unsupported file type: {mime_type}")
 
         response = await self.client.aio.models.generate_content(
             model=self.model,
@@ -151,20 +155,21 @@ You are an accountant that extracts information from documents. Please look at t
         super().__init__(response_type=response_type, cache=cache)
         self.client = client if client is not None else get_default_client()
         self.model = model
+        self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
 
     @override
     async def parse_extract(
         self,
         filename: str,
-        content: bytes,
-        mime_type: Optional[str] = None,
+        content: bytes
     ) -> T:
         """
         Performs end-to-end document parsing and structuring using Gemini's native functionality.
         """
-        if not mime_type:
-            # Determine the MIME type based on the file extension
-            mime_type = get_mime_type(filename)
+        mime_type = get_mime_type(filename)
+
+        if (extention := mime_type.split("/")[-1]) not in self._supported_file_types:
+            raise ValueError(f"Gemini: unsupported file type: {mime_type}")
 
         response = await self.client.aio.models.generate_content(
             model=self.model,

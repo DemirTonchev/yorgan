@@ -145,10 +145,9 @@ class ParseExtractService(BaseService[T]):
     async def __call__(
             self,
             filename: str,
-            content: bytes,
-            mime_type: Optional[str] = None
+            content: bytes
     ) -> T:
-        return await self.parse_extract(filename, content, mime_type)
+        return await self.parse_extract(filename, content)
 
 
 class ParseExtractPipelineService(Generic[T]):

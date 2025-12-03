@@ -1,7 +1,14 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Literal, Optional, TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class SchemaDict(TypedDict, total=False):
+    properties: dict[str, Any]
+    required: list[str]
+    title: str
+    type: Literal["object"]
 
 
 class Metadata(BaseModel):
@@ -15,8 +22,31 @@ class ParseResponse(BaseModel):
     markdown: str
 
 
-class ParseResponsewMetaData(ParseResponse):
+class ParseResponseMetaData(ParseResponse):
     metadata: Metadata = Field(default=Metadata())
+
+
+class APIParseResponse(ParseResponseMetaData):
+
+    model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="after")
+    def debug_usage(self):
+        print("created pydantic model")
+
+        return self
+
+
+class APIExtractResponse[T](BaseModel):
+
+    extraction: T
+    metadata: dict[str, Any]
+
+    @model_validator(mode="after")
+    def debug_usage(self):
+        print("created pydantic model")
+
+        return self
 
 
 class CompanyInfo(BaseModel):

@@ -23,7 +23,8 @@ from aiocache import RedisCache
 from aiocache.serializers import PickleSerializer
 
 from yorgan.cache import SimpleMemoryCacheWithPersistence
-from yorgan.datamodels import ParseResponse, ParseResponsewMetaData
+from yorgan.datamodels import ParseResponse, ParseResponseMetaData
+from yorgan.datamodels import APIParseResponse, APIExtractResponse
 from yorgan.services.gemini import (
     GeminiStructuredOutputService,
 )
@@ -40,29 +41,6 @@ from app.service_registry import (
 )
 
 
-class APIParseResponse(ParseResponsewMetaData):
-
-    model_config = ConfigDict(extra="allow")
-
-    @model_validator(mode="after")
-    def debug_usage(self):
-        print("created pydantic model")
-
-        return self
-
-
-class APIExtractResponse[T](BaseModel):
-
-    extraction: T
-    metadata: dict[str, Any]
-
-    @model_validator(mode="after")
-    def debug_usage(self):
-        print("created pydantic model")
-
-        return self
-
-
 # turn off logging to gemini and other outbound services
 # logging.getLogger("httpx").setLevel(logging.ERROR)
 
@@ -71,7 +49,6 @@ class APIExtractResponse[T](BaseModel):
 # needs to be cli param
 CACHE = SimpleMemoryCacheWithPersistence(persist_dir=Path(__file__).parent / './cache/parsed')
 # CACHE = RedisCache(serializer=PickleSerializer())
-
 
 
 @asynccontextmanager
@@ -284,7 +261,6 @@ async def parse_extract(
 
     content = await file.read()
     filename = file.filename
-    mime_type = file.content_type  # could be None
     try:
         ExtractionModel = json_schema_to_pydantic_model(json_loads(schema))
     except (JSONDecodeError, ) as e:
@@ -301,7 +277,7 @@ async def parse_extract(
 
     filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + content)
 
-    structured_output = await parse_extract_service(filename=filename_key, content=content, mime_type=mime_type)
+    structured_output = await parse_extract_service(filename=filename_key, content=content)
     metadata = {
         "filename": filename,
         "used_service": parse_extract_service.service_name,
