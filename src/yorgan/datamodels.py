@@ -1,7 +1,14 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class SchemaDict(TypedDict, total=False):
+    properties: dict[str, Any]
+    required: list[str]
+    title: str
+    type: Literal["object"]
 
 
 class Metadata(BaseModel):
