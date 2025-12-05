@@ -168,6 +168,7 @@ async def extract(
     schema: Annotated[str, Form()],
     metadata: Annotated[str, Form()] = "{}",
     option: ExctractServiceOptions = "gemini",
+    service_options: Annotated[str, Form()] = "{}",
 ) -> APIExtractResponse:
     """
     Extract structured data from a document markdown using a provided JSON Schema.
@@ -200,10 +201,12 @@ async def extract(
       -F 'metadata={"filename":"invoice.pdf"}'
     """
     start_ts = time.perf_counter()
+
     try:
         schema = json_loads(schema)
         ExtractionModel = json_schema_to_pydantic_model(schema)
         metadata = json_loads(metadata)
+        service_kwargs = json_loads(service_options)
     except (JSONDecodeError, Exception) as e:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -214,13 +217,9 @@ async def extract(
 
     # this way we guarantee that the hit the correct cache if any on model change back and forth.
     # json_dumps again is not ideal but we want to sort the keys right to guarantee same hash
-    filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode())
+    filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + markdown.encode())
 
-    extract_service = get_extract_service(option, response_type=ExtractionModel, cache=CACHE)
-    # extract_service = GeminiStructuredOutputService(
-    #     response_type=ExtractionModel,
-    #     cache=CACHE
-    # )
+    extract_service = get_extract_service(option, response_type=ExtractionModel, cache=CACHE, **service_kwargs)
 
     structured_output = await extract_service(
         filename=filename_key,
@@ -234,7 +233,6 @@ async def extract(
         }
     )
     api_response = APIExtractResponse(extraction=structured_output, metadata=metadata)
-    # degub logging here
     return ORJSONResponse(api_response.model_dump(mode='json'))
 
 
@@ -243,6 +241,7 @@ async def parse_extract(
     file: Annotated[UploadFile, File()],
     schema: Annotated[str, Form()],
     option: str = "gemini",
+    service_options: Annotated[str, Form()] = "{}",
 ) -> APIExtractResponse:
     """
     Parses an uploaded document and returns a structured DocumentModel based on the provided JSON Schema.
@@ -274,6 +273,7 @@ async def parse_extract(
     filename = file.filename
     try:
         ExtractionModel = json_schema_to_pydantic_model(json_loads(schema))
+        service_kwargs = json_loads(service_options)
     except (JSONDecodeError, ) as e:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -284,10 +284,10 @@ async def parse_extract(
             status.HTTP_400_BAD_REQUEST,
             detail=f"ERROR creating Pydantic model: {e}"
         )
-    parse_extract_service = get_parse_extract_service(option, response_type=ExtractionModel, cache=CACHE)
 
     filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + content)
 
+    parse_extract_service = get_parse_extract_service(option, response_type=ExtractionModel, cache=CACHE, **service_kwargs)
     structured_output = await parse_extract_service(filename=filename_key, content=content)
     metadata = {
         "filename": filename,

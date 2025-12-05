@@ -47,7 +47,6 @@ def get_parse_service(
         raise ValueError(f"Unknown Parse service or service can't load: {option}")
 
     parse_service_class = _parse_registry[option][0]
-
     return parse_service_class(cache=cache, **kwargs)  # type: ignore
 
 
@@ -55,7 +54,8 @@ def get_parse_service(
 def get_extract_service(
     option: ExctractServiceOptions,
     response_type: Type[T],
-    cache: Optional[BaseCache] = None
+    cache: Optional[BaseCache] = None,
+    **kwargs: Any
 ) -> StructuredOutputService[T]:
 
     _extract_registry = _registy.structured.get_module_service_map()
@@ -63,17 +63,14 @@ def get_extract_service(
         raise ValueError(f"Unknown Extract service or service can't load: {option}")
 
     extract_service_class = _extract_registry[option][0]
-    # TODO
-    # if moded ...# model = ..... we need to inject model from settings or endpoint?
-    # extract_service(response_type=response_type, cache=cache, model = model)
-
     return extract_service_class(response_type=response_type, cache=cache, **kwargs)
 
 
 def get_parse_extract_service(
         option: ParseExctractServiceOptions,
         response_type: Type[T],
-        cache: Optional[BaseCache] = None
+        cache: Optional[BaseCache] = None,
+        **kwargs: Any
 ) -> ParseExtractService[T]:
 
     _parse_extract_registry = _registy.parse_extract.get_module_service_map()
@@ -82,8 +79,4 @@ def get_parse_extract_service(
         raise ValueError(f"Unknown Extract service or service can't load: {option}")
 
     parse_extract_service = _parse_extract_registry[option][0]
-    # TODO
-    # if moded ...# model = ..... we need to inject model from settings or endpoint?
-    # extract_service(response_type=response_type, cache=cache, model = model)
-
-    return parse_extract_service(response_type=response_type, cache=cache)
+    return parse_extract_service(response_type=response_type, cache=cache, **kwargs)
