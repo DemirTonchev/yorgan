@@ -43,6 +43,7 @@ class _RequestBuilder:
         response_model: Optional[Type[T]] = None,
         metadata: Optional[dict] = None,
         option: str = "gemini",
+        service_options: Optional[dict] = None,
     ) -> dict:
         if markdown is None and markdown_file is None:
             raise ValueError("Either markdown or markdown_file must be provided")
@@ -60,12 +61,15 @@ class _RequestBuilder:
             with open(schema_file, "r") as f:
                 schema = json.load(f)
 
-        return {
+        data = {
             "markdown": markdown,
             "schema": json.dumps(schema),
             "metadata": json.dumps(metadata or {}),
             "option": option,
         }
+        if service_options is not None:
+            data.update({"service_options": json.dumps(service_options)})
+        return data
 
     @staticmethod
     def build_parse_extract_request(
@@ -178,10 +182,11 @@ class YorganSyncClient:
         response_model: Optional[Type[T]] = None,
         metadata: Optional[dict] = None,
         option: str = "gemini",
+        service_options: Optional[dict] = None,
     ) -> APIExtractResponse:
         data = self._builder.build_extract_request(
             markdown, markdown_file, schema, schema_file,
-            response_model, metadata, option
+            response_model, metadata, option, service_options,
         )
         response = self.client.post(f"{self.base_url}/extract", data=data)
         response.raise_for_status()
@@ -287,10 +292,11 @@ class YorganAsyncClient:
         response_model: Optional[Type[T]] = None,
         metadata: Optional[dict] = None,
         option: str = "gemini",
+        service_options: Optional[dict] = None,
     ) -> APIExtractResponse:
         data = self._builder.build_extract_request(
             markdown, markdown_file, schema, schema_file,
-            response_model, metadata, option
+            response_model, metadata, option, service_options
         )
         response = await self.client.post(f"{self.base_url}/extract", data=data)
         response.raise_for_status()
