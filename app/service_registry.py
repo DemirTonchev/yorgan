@@ -35,23 +35,20 @@ def get_parse_service(
 
 
 @lru_cache(maxsize=10)
-def get_parse_service(option: ParseServiceOptions, cache: Optional[BaseCache] = None) -> ParseService:
+def get_parse_service(
+        option: ParseServiceOptions,
+        cache: Optional[BaseCache] = None,
+        **kwargs: Any
+) -> ParseService:
 
     # gets mapping of module: list of service classes, curretnly we only have one per module but that might change
     _parse_registry = _registy.parse.get_module_service_map()
-    if option == "auto":  # TODO Remove auto
-        option = "landingai"  # type: ignore
     if option not in _parse_registry:
         raise ValueError(f"Unknown Parse service or service can't load: {option}")
 
-    parse_service = _parse_registry[option][0]
+    parse_service_class = _parse_registry[option][0]
 
-    if option in ["landingai"]:
-        return parse_service(cache=cache)  # type: ignore
-    else:
-        # model = ..... we need to inject model from settings or endpoint?
-        # return parse_service(model=model, cache=cache)
-        return parse_service(cache=cache)  # type: ignore
+    return parse_service_class(cache=cache, **kwargs)  # type: ignore
 
 
 @lru_cache(maxsize=10)
@@ -62,17 +59,15 @@ def get_extract_service(
 ) -> StructuredOutputService[T]:
 
     _extract_registry = _registy.structured.get_module_service_map()
-    if option == "auto":  # TODO Remove auto
-        option = "gemini"  # type: ignore
     if option not in _extract_registry:
         raise ValueError(f"Unknown Extract service or service can't load: {option}")
 
-    extract_service = _extract_registry[option][0]
+    extract_service_class = _extract_registry[option][0]
     # TODO
     # if moded ...# model = ..... we need to inject model from settings or endpoint?
     # extract_service(response_type=response_type, cache=cache, model = model)
 
-    return extract_service(response_type=response_type, cache=cache)
+    return extract_service_class(response_type=response_type, cache=cache, **kwargs)
 
 
 def get_parse_extract_service(

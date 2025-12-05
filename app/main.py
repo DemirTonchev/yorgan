@@ -111,6 +111,7 @@ app.add_middleware(
 async def parse(
         file: Annotated[UploadFile, File(...)],
         option: ParseServiceOptions = "landingai",
+        service_options: Annotated[str, Form()] = "{}",
 ) -> APIParseResponse:
     """
     Parses an uploaded document using OCR and returns the response from OCR.
@@ -119,6 +120,7 @@ async def parse(
     - file (UploadFile): Required. The uploaded file to parse (e.g. PDF, image). Provided by FastAPI via multipart/form-data.
     - option (str | ParseServiceOptions): Optional. Service selector for parsing backend. Supported values: "landingai", "gemini", "auto".
         Defaults to "auto". Controls which underlying parse service is used.
+    - service_options (str): Optional. A JSON string containing options for the service (e.g. {"model": "...", "prompt": "..."}).
 
     Returns
     - APIParseResponse: A Pydantic model (extends ParseResponse) containing parsed text/markdown, detected entities and metadata.
@@ -128,17 +130,26 @@ async def parse(
 
     Example (curl)
     curl -X POST "http://localhost:8000/parse" \
-      -F "file=@/path/to/invoice.pdf" \
-      -F "option=auto"
+      -F "file=@/path/to/document.pdf" \
+      -F "option=gemini" \
+      -F 'service_options={"model": "gemini-2.5-pro", "prompt": "You are ..."}'
     """
+
+    try:
+        service_kwargs = json_loads(service_options)
+    except (JSONDecodeError, TypeError):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid JSON for service_options: {service_options}"
+        )
+
     content = await file.read()
     filename = file.filename
-    parse_service = get_parse_service(option, cache=CACHE)
+    parse_service = get_parse_service(option, cache=CACHE, **service_kwargs)
 
     filename_key = generate_hashed_filename(filename, content)
     try:
         parsed_response = await parse_service(filename=filename_key, content=content)
-
         api_response = APIParseResponse(**parsed_response.model_dump())
         api_response.metadata.filename = filename
 
