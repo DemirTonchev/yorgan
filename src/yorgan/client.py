@@ -20,7 +20,7 @@ class _RequestBuilder:
         document: Optional[Path] = None,
         document_url: Optional[str] = None,
         option: str = "landingai",
-        model: Optional[str] = None
+        service_options: Optional[dict] = None,
     ) -> tuple[Optional[dict], Optional[dict]]:
         if document is None and document_url is None:
             raise ValueError("Either document or document_url must be provided")
@@ -30,8 +30,8 @@ class _RequestBuilder:
         document = cast(Path, document)
         files = {"file": (document.name, document.read_bytes())}  # read_bytes closes the file
         data = {"option": option}
-        if model is not None:
-            data.update({"model": model})
+        if service_options is not None:
+            data.update({"service_options": json.dumps(service_options)})
         return files, data
 
     @staticmethod
@@ -55,7 +55,7 @@ class _RequestBuilder:
                 markdown = f.read()
 
         if response_model is not None:
-            schema = response_model.model_json_schema()
+            schema = cast(SchemaDict, response_model.model_json_schema())
         elif schema_file is not None:
             with open(schema_file, "r") as f:
                 schema = json.load(f)
@@ -158,8 +158,9 @@ class YorganSyncClient:
         document: Optional[Path] = None,
         document_url: Optional[str] = None,
         option: str = "landingai",
+        service_options: Optional[dict] = None,
     ) -> ParseResponseMetaData | LandingParseResponse:
-        files, data = self._builder.build_parse_request(document, document_url, option)
+        files, data = self._builder.build_parse_request(document, document_url, option, service_options)
         response = self.client.post(
             f"{self.base_url}/parse",
             files=files,
@@ -266,8 +267,9 @@ class YorganAsyncClient:
         document: Optional[Path] = None,
         document_url: Optional[str] = None,
         option: str = "landingai",
+        service_options: Optional[dict] = None,
     ) -> LandingParseResponse | ParseResponseMetaData:
-        files, data = self._builder.build_parse_request(document, document_url, option)
+        files, data = self._builder.build_parse_request(document, document_url, option, service_options)
         response = await self.client.post(
             f"{self.base_url}/parse",
             files=files,
@@ -280,7 +282,7 @@ class YorganAsyncClient:
         self,
         markdown: Optional[str] = None,
         markdown_file: Optional[Path] = None,
-        schema: Optional[dict] = None,
+        schema: Optional[SchemaDict] = None,
         schema_file: Optional[Path] = None,
         response_model: Optional[Type[T]] = None,
         metadata: Optional[dict] = None,
