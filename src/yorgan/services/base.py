@@ -100,11 +100,16 @@ Document:
     def __init__(
         self,
         response_type: Type[T],
-        model: str,
+        model: Optional[str] = None,
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None,
     ):
         super().__init__(response_type=response_type, cache=cache)
+        if model is None:
+            raise ValueError(
+                f"{self.__class__.__name__} requires a model. "
+                "Must pass 'model' to __init__"
+            )
         self.model = model
         self.prompt = prompt if prompt is not None else self.DEFAULT_PROMPT
 
