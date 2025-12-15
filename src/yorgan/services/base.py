@@ -20,6 +20,8 @@ class HasMarkdown(Protocol):
 T = TypeVar('T', bound=BaseModel)
 PARSE_T = TypeVar('PARSE_T', bound=ParseResponse)
 
+PAGE_BREAK = "<!-- PAGE BREAK -->"
+
 
 class BaseService(ABC, Generic[T]):
     """
@@ -67,11 +69,11 @@ class LLMParseService(ParseService[PARSE_T]):
     """
     Abstract base for parse services that use an LLM/VLM with a prompt template.
     """
-    DEFAULT_PROMPT: str = """\
+    DEFAULT_PROMPT: str = f"""\
 Your task is to extract the text from the attached document. Format it nicely as a markdown.
 Insert the following page break between consecutive pages:
 
-<!-- PAGE BREAK -->
+{PAGE_BREAK}
 
 """
 

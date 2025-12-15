@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, create_model
 
 from yorgan.datamodels import ParseResponse
 
-from .base import PARSE_T, LLMParseService, LLMStructuredOutputService
+from .base import PAGE_BREAK, PARSE_T, LLMParseService, LLMStructuredOutputService
 from .utils import count_pdf_pages, get_mime_type, split_pdf_pages
 
 if TYPE_CHECKING:
@@ -27,8 +27,6 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
     This class wraps an existing LLMParseService (like GeminiParseService 
     or OpenAIParseService) and adds automatic multipage PDF processing.
     """
-
-    PAGE_BREAK = "\n\n<!-- PAGE BREAK -->\n\n"
 
     def __init__(
         self,
@@ -126,7 +124,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
             page_markdowns.append(page_response.markdown)
 
         # Combine all pages with page breaks
-        combined_markdown = self.PAGE_BREAK.join(page_markdowns)
+        combined_markdown = f"\n\n{PAGE_BREAK}\n\n".join(page_markdowns)
 
         # Create the response object
         return self.response_type(markdown=combined_markdown)
@@ -150,8 +148,6 @@ class MultipageLLMStructuredOutputService(LLMStructuredOutputService[T], Generic
     The model incrementally builds the structured output and maintains notes
     about information that may be relevant for subsequent pages.
     """
-
-    PAGE_BREAK = "<!-- PAGE BREAK -->"
 
     DEFAULT_MULTIPAGE_PROMPT: str = """\
 You are extracting structured information from a multi-page document, processing it page by page.
@@ -363,7 +359,7 @@ Document:
             Structured output
         """
         # Split by pages
-        pages = parse_response.markdown.split(self.PAGE_BREAK)
+        pages = parse_response.markdown.split(PAGE_BREAK)
 
         # Check if we should use multipage processing
         if len(pages) < self.page_threshold:
