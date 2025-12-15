@@ -174,7 +174,7 @@ Document:
     def __init__(
         self,
         base_structured_output_service: LLMStructuredOutputService[T],
-        page_threshold: int = 1,
+        page_threshold: int = 10,
         multipage_prompt: Optional[str] = None,
     ):
         """
