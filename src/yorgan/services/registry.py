@@ -113,7 +113,7 @@ class Registry(Generic[T]):
             base_path = Path(__file__).parent
 
         for file_path in base_path.glob("*.py"):
-            if file_path.stem in ('__init__', 'registry', 'base', 'utils'):
+            if file_path.stem in ('__init__', 'registry', 'base', 'multipage', 'utils'):
                 continue
 
             module_name = f"{self.__module__.rsplit('.', 1)[0]}.{file_path.stem}"
