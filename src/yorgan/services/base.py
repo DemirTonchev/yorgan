@@ -70,7 +70,10 @@ class LLMParseService(ParseService[PARSE_T]):
     Abstract base for parse services that use an LLM/VLM with a prompt template.
     """
     DEFAULT_PROMPT: str = f"""\
-Your task is to extract the text from the attached document. Format it nicely as a markdown.
+Your task is to extract the text from the attached document.
+Format it nicely as a markdown.
+Make sure to include the newline symbols.
+Parse tables properly.
 Insert the following page break between consecutive pages:
 
 {PAGE_BREAK}
