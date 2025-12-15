@@ -63,6 +63,30 @@ class ParseService(BaseService[PARSE_T]):
         return await self.parse(filename, content, **kwargs)
 
 
+class LLMParseService(ParseService[PARSE_T]):
+    """
+    Abstract base for parse services that use an LLM/VLM with a prompt template.
+    """
+    DEFAULT_PROMPT: str = """\
+Your task is to extract the text from the attached document. Format it nicely as a markdown.
+Insert the following page break between consecutive pages:
+
+<!-- PAGE BREAK -->
+
+"""
+
+    def __init__(
+        self,
+        response_type: Type[PARSE_T],
+        model: str,
+        prompt: Optional[str] = None,
+        cache: OptionalCacheType = None,
+    ):
+        super().__init__(response_type=response_type, cache=cache)
+        self.model = model
+        self.prompt = prompt if prompt is not None else self.DEFAULT_PROMPT
+
+
 class StructuredOutputService(BaseService[T]):
     """
     Class for a Service that extracts structured output using a language model.
