@@ -45,8 +45,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
             cache=base_parse_service.cache
         )
         self.base_parse_service = base_parse_service
-        # Perhaps we should add "Multipage" to the service name
-        self.service_name = base_parse_service.service_name
+        self.service_name = "Multipage_" + base_parse_service.service_name
 
     def _should_process_multipage(self, filename: str, content: bytes) -> bool:
         """
@@ -96,7 +95,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
         if not self._should_process_multipage(filename, content):
             # Not a multi-page PDF (could be image, single-page PDF, etc.)
             # Use base service directly
-            return await self.base_parse_service.parse(
+            return await self.base_parse_service(
                 filename=filename,
                 content=content,
                 **kwargs
@@ -115,7 +114,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
             page_filename = f"{name}_page_{page_num}.{ext}"
 
             # Use the base parse service to parse this single page
-            page_response = await self.base_parse_service.parse(
+            page_response = await self.base_parse_service(
                 filename=page_filename,
                 content=page_content,
                 **kwargs
@@ -195,8 +194,7 @@ Document:
         self.base_structured_output_service = base_structured_output_service
         self.page_threshold = page_threshold
         self.multipage_prompt = multipage_prompt if multipage_prompt is not None else self.DEFAULT_MULTIPAGE_PROMPT
-        # Perhaps we should add "Multipage" to the service name
-        self.service_name = base_structured_output_service.service_name
+        self.service_name = "Multipage_" + base_structured_output_service.service_name
 
     def _get_page_context(
         self,
@@ -321,7 +319,7 @@ Document:
                 page_filename = f"{name}_page_{page_num}.{ext}"
 
                 # Extract using the base service
-                result = await self.base_structured_output_service.extract(
+                result = await self.base_structured_output_service(
                     filename=page_filename,
                     parse_response=temp_parse_response
                 )
