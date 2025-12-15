@@ -364,7 +364,7 @@ Document:
         # Check if we should use multipage processing
         if len(pages) < self.page_threshold:
             # Use base service directly
-            return await self.base_structured_output_service.extract(
+            return await self.base_structured_output_service(
                 filename=filename,
                 parse_response=parse_response
             )
