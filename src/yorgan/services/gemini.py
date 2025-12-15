@@ -43,7 +43,13 @@ class GeminiParseService(ParseService[ParseResponse]):
         self.client = client if client is not None else get_default_client()
         self.model = model
         if prompt is None:
-            prompt = """Your task is to extract the text from the attached document. Format it nicely as a markdown."""
+            prompt = """\
+Your task is to extract the text from the attached document. Format it nicely as a markdown.
+Insert the following page break between consecutive pages:
+
+<!-- PAGE BREAK -->
+
+"""
         self.prompt = prompt
         self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
 
