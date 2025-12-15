@@ -99,12 +99,6 @@ class GeminiStructuredOutputService(LLMStructuredOutputService[T]):
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None
     ):
-        if prompt is None:
-            prompt = """\
-You extract structured information from documents. Review the following document and return the extracted data in the specified format.
-Document:
-{parse_response_markdown}
-"""
         super().__init__(response_type=response_type, cache=cache, model=model, prompt=prompt)
         self.client = client if client is not None else get_default_client()
 

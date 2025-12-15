@@ -116,7 +116,7 @@ class LLMStructuredOutputService(StructuredOutputService[T]):
     Abstract base for structured output services that use an LLM with a prompt template.
     """
     DEFAULT_PROMPT: str = """\
-You extracts information from documents. Please look at this document and extract the needed information.
+You extract structured information from documents. Review the following document and return the extracted data in the specified format.
 Document:
 {parse_response_markdown}
 """
