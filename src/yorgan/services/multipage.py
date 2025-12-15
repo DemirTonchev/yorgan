@@ -108,6 +108,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
         # Parse each page using the base parse service
         page_markdowns = []
         for page_num, page_content in enumerate(pages, start=1):
+            print(f"Page {page_num}/{len(pages)}")
             # Create a filename for this page
             # This is not important, the cache uses the full filename
             name, dot, ext = filename.rpartition(".")
@@ -291,6 +292,7 @@ Document:
         try:
             # Process each page
             for page_num, page_content in enumerate(pages, start=1):
+                print(f"Page {page_num}/{len(pages)}")
                 # Get context window (previous, current, next pages)
                 page_context = self._get_page_context(pages, page_num, total_pages)
 
