@@ -122,6 +122,10 @@ class LLMStructuredOutputService(StructuredOutputService[T]):
     """
     DEFAULT_PROMPT: str = """\
 You extract structured information from documents. Review the following document and return the extracted data in the specified format.
+When you extract numbers normalize every extracted numeric value to its true numeric form by applying the unit multiplier,
+(e.g., thousands x1000; millions x1000000; milli x0.001; micro x0.000001),
+so the output contains the correctly scaled integer or floating-point value.
+
 Document:
 {parse_response_markdown}
 """
