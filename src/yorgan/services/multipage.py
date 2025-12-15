@@ -298,7 +298,7 @@ Document:
 
                 # Format the multipage prompt with current state
                 current_data_str = str(current_data.model_dump()) if current_data else "None"
-                notes_str = notes if notes else "None"
+                notes_str = notes if notes else ""
 
                 formatted_prompt = self.multipage_prompt.format(
                     current_page=page_num,
