@@ -111,7 +111,6 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
         for page_num, page_content in enumerate(pages, start=1):
             print(f"Page {page_num}/{len(pages)}")
             # Create a filename for this page
-            # This is not important, the cache uses the full filename
             name, dot, ext = filename.rpartition(".")
             page_filename = f"{name}_page_{page_num}.{ext}"
 
@@ -316,7 +315,6 @@ Document:
                 temp_parse_response = ParseResponse(markdown=page_context)
 
                 # Create a filename for this page
-                # This is not important, the cache uses the full filename
                 name, dot, ext = filename.rpartition(".")
                 page_filename = f"{name}_page_{page_num}.{ext}"
 
