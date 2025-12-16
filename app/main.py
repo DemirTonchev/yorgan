@@ -151,7 +151,7 @@ async def parse(
 
     # use the mulitpage version of LLM based services
     if (isinstance(parse_service, LLMParseService)):
-        parse_service = MultipageLLMParseService(base_parse_service=parse_service)
+        parse_service = MultipageLLMParseService(parse_service=parse_service)
 
     filename_key = generate_hashed_filename(filename, content)
     try:
@@ -229,7 +229,7 @@ async def extract(
 
     # use the mulitpage version of LLM based services
     if (isinstance(extract_service, LLMStructuredOutputService)):
-        extract_service = MultipageLLMStructuredOutputService(base_structured_output_service=extract_service)
+        extract_service = MultipageLLMStructuredOutputService(structured_output_service=extract_service)
 
     structured_output = await extract_service(
         filename=filename_key,

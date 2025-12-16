@@ -30,23 +30,23 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
 
     def __init__(
         self,
-        base_parse_service: LLMParseService[PARSE_T],
+        parse_service: LLMParseService[PARSE_T],
         page_threshold: int = 10
     ):
         """
         Initialize with an existing parse service to use for individual pages.
 
         Args:
-            base_parse_service: The underlying parse service (e.g., GeminiParseService)
+            parse_service: The underlying parse service (e.g., GeminiParseService)
         """
         super().__init__(
-            response_type=base_parse_service.response_type,
-            model=base_parse_service.model,
-            prompt=base_parse_service.prompt,
-            cache=base_parse_service.cache
+            response_type=parse_service.response_type,
+            model=parse_service.model,
+            prompt=parse_service.prompt,
+            cache=parse_service.cache
         )
-        self.base_parse_service = base_parse_service
-        self.service_name = "Multipage_" + base_parse_service.service_name
+        self.parse_service = parse_service
+        self.service_name = "Multipage_" + parse_service.service_name
         self.page_threshold = page_threshold
 
     def _should_process_multipage(self, filename: str, content: bytes) -> bool:
@@ -97,7 +97,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
         if not self._should_process_multipage(filename, content):
             # Not a multi-page PDF (could be image, single-page PDF, etc.)
             # Use base service directly
-            return await self.base_parse_service(
+            return await self.parse_service(
                 filename=filename,
                 content=content,
                 **kwargs
@@ -116,7 +116,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
             page_filename = f"{name}_page_{page_num}.{ext}"
 
             # Use the base parse service to parse this single page
-            page_response = await self.base_parse_service(
+            page_response = await self.parse_service(
                 filename=page_filename,
                 content=page_content,
                 **kwargs
@@ -175,7 +175,7 @@ Document:
 
     def __init__(
         self,
-        base_structured_output_service: LLMStructuredOutputService[T],
+        structured_output_service: LLMStructuredOutputService[T],
         page_threshold: int = 10,
         multipage_prompt: Optional[str] = None,
     ):
@@ -183,20 +183,20 @@ Document:
         Initialize with an existing structured output service.
 
         Args:
-            base_structured_output_service: The underlying structured output service
+            structured_output_service: The underlying structured output service
             page_threshold: Number of pages above which to use multipage processing
             multipage_prompt: Custom prompt template for multipage processing
         """
         super().__init__(
-            response_type=base_structured_output_service.response_type,
-            model=base_structured_output_service.model,
-            prompt=base_structured_output_service.prompt,
-            cache=base_structured_output_service.cache
+            response_type=structured_output_service.response_type,
+            model=structured_output_service.model,
+            prompt=structured_output_service.prompt,
+            cache=structured_output_service.cache
         )
-        self.base_structured_output_service = base_structured_output_service
+        self.structured_output_service = structured_output_service
         self.page_threshold = page_threshold
         self.multipage_prompt = multipage_prompt if multipage_prompt is not None else self.DEFAULT_MULTIPAGE_PROMPT
-        self.service_name = "Multipage_" + base_structured_output_service.service_name
+        self.service_name = "Multipage_" + structured_output_service.service_name
 
     def _get_page_context(
         self,
@@ -286,8 +286,8 @@ Document:
         wrapper_type = self._create_wrapper_type()
 
         # Save original prompt and response type
-        original_prompt = self.base_structured_output_service.prompt
-        original_response_type = self.base_structured_output_service.response_type
+        original_prompt = self.structured_output_service.prompt
+        original_response_type = self.structured_output_service.response_type
 
         try:
             # Process each page
@@ -309,8 +309,8 @@ Document:
                 )
 
                 # Temporarily override the prompt and response type
-                self.base_structured_output_service.prompt = formatted_prompt
-                self.base_structured_output_service.response_type = wrapper_type
+                self.structured_output_service.prompt = formatted_prompt
+                self.structured_output_service.response_type = wrapper_type
 
                 # Create ParseResponse with the page context
                 temp_parse_response = ParseResponse(markdown=page_context)
@@ -321,7 +321,7 @@ Document:
                 page_filename = f"{name}_page_{page_num}.{ext}"
 
                 # Extract using the base service
-                result = await self.base_structured_output_service(
+                result = await self.structured_output_service(
                     filename=page_filename,
                     parse_response=temp_parse_response
                 )
@@ -331,8 +331,8 @@ Document:
                 notes = result.notes
         finally:
             # Restore original prompt and response type
-            self.base_structured_output_service.prompt = original_prompt
-            self.base_structured_output_service.response_type = original_response_type
+            self.structured_output_service.prompt = original_prompt
+            self.structured_output_service.response_type = original_response_type
 
         # Convert the optional model to the final required model
         # This will validate that all required fields are now populated
@@ -366,7 +366,7 @@ Document:
         # Check if we should use multipage processing
         if len(pages) < self.page_threshold:
             # Use base service directly
-            return await self.base_structured_output_service(
+            return await self.structured_output_service(
                 filename=filename,
                 parse_response=parse_response
             )
