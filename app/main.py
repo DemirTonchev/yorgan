@@ -28,6 +28,8 @@ from yorgan.datamodels import APIParseResponse, APIExtractResponse
 from yorgan.services.gemini import (
     GeminiStructuredOutputService,
 )
+from yorgan.services.base import LLMParseService, LLMStructuredOutputService
+from yorgan.services.multipage import MultipageLLMParseService, MultipageLLMStructuredOutputService
 from yorgan.utils import SchemaDict, json_schema_to_pydantic_model, SchemaConversionError
 from app.app_settings import settings
 from app.app_utils import generate_hashed_filename
@@ -147,6 +149,10 @@ async def parse(
     filename = file.filename
     parse_service = get_parse_service(option, cache=CACHE, **service_kwargs)
 
+    # use the mulitpage version of LLM based services
+    if (isinstance(parse_service, LLMParseService)):
+        parse_service = MultipageLLMParseService(parse_service=parse_service)
+
     filename_key = generate_hashed_filename(filename, content)
     try:
         parsed_response = await parse_service(filename=filename_key, content=content)
@@ -220,6 +226,10 @@ async def extract(
     filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + markdown.encode())
 
     extract_service = get_extract_service(option, response_type=ExtractionModel, cache=CACHE, **service_kwargs)
+
+    # use the mulitpage version of LLM based services
+    if (isinstance(extract_service, LLMStructuredOutputService)):
+        extract_service = MultipageLLMStructuredOutputService(structured_output_service=extract_service)
 
     structured_output = await extract_service(
         filename=filename_key,

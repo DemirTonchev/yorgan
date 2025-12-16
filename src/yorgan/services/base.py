@@ -20,6 +20,8 @@ class HasMarkdown(Protocol):
 T = TypeVar('T', bound=BaseModel)
 PARSE_T = TypeVar('PARSE_T', bound=ParseResponse)
 
+PAGE_BREAK = "<!-- PAGE BREAK -->"
+
 
 class BaseService(ABC, Generic[T]):
     """
@@ -63,6 +65,33 @@ class ParseService(BaseService[PARSE_T]):
         return await self.parse(filename, content, **kwargs)
 
 
+class LLMParseService(ParseService[PARSE_T]):
+    """
+    Abstract base for parse services that use an LLM/VLM with a prompt template.
+    """
+    DEFAULT_PROMPT: str = f"""\
+Your task is to extract the text from the attached document.
+Format it nicely as a markdown.
+Make sure to include the newline symbols.
+Parse tables properly.
+Insert the following page break between consecutive pages:
+
+{PAGE_BREAK}
+
+"""
+
+    def __init__(
+        self,
+        response_type: Type[PARSE_T],
+        model: str,
+        prompt: Optional[str] = None,
+        cache: OptionalCacheType = None,
+    ):
+        super().__init__(response_type=response_type, cache=cache)
+        self.model = model
+        self.prompt = prompt if prompt is not None else self.DEFAULT_PROMPT
+
+
 class StructuredOutputService(BaseService[T]):
     """
     Class for a Service that extracts structured output using a language model.
@@ -92,7 +121,11 @@ class LLMStructuredOutputService(StructuredOutputService[T]):
     Abstract base for structured output services that use an LLM with a prompt template.
     """
     DEFAULT_PROMPT: str = """\
-You extracts information from documents. Please look at this document and extract the needed information.
+You extract structured information from documents. Review the following document and return the extracted data in the specified format.
+When you extract numbers normalize every extracted numeric value to its true numeric form by applying the unit multiplier,
+(e.g., thousands x1000; millions x1000000; milli x0.001; micro x0.000001),
+so the output contains the correctly scaled integer or floating-point value.
+
 Document:
 {parse_response_markdown}
 """
@@ -115,7 +148,8 @@ Document:
 
     def format_prompt(self, parse_response: ParseResponse) -> str:
         """Format the prompt template with the parsed document content."""
-        return self.prompt.format(parse_response_markdown=parse_response.markdown)
+        # markdown may contain {} brackets
+        return self.prompt.replace("{parse_response_markdown}", parse_response.markdown)
 
 
 R = TypeVar("R", bound=BaseModel, covariant=True)

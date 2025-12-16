@@ -4,7 +4,7 @@ from functools import lru_cache
 from google import genai
 from google.genai import types
 from .base import (
-    ParseService,
+    LLMParseService,
     ParseResponse,
     LLMStructuredOutputService,
     ParseExtractService,
@@ -27,7 +27,7 @@ def get_default_client():
     return genai.Client()
 
 
-class GeminiParseService(ParseService[ParseResponse]):
+class GeminiParseService(LLMParseService[ParseResponse]):
     """
     A Parse Service implementation using Gemini.
     """
@@ -39,12 +39,13 @@ class GeminiParseService(ParseService[ParseResponse]):
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None
     ):
-        super().__init__(response_type=ParseResponse, cache=cache)
+        super().__init__(
+            response_type=ParseResponse,
+            model=model,
+            prompt=prompt,
+            cache=cache
+        )
         self.client = client if client is not None else get_default_client()
-        self.model = model
-        if prompt is None:
-            prompt = """Your task is to extract the text from the attached document. Format it nicely as a markdown."""
-        self.prompt = prompt
         self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
 
     @override
@@ -98,12 +99,6 @@ class GeminiStructuredOutputService(LLMStructuredOutputService[T]):
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None
     ):
-        if prompt is None:
-            prompt = """\
-You extract structured information from documents. Review the following document and return the extracted data in the specified format.
-Document:
-{parse_response_markdown}
-"""
         super().__init__(response_type=response_type, cache=cache, model=model, prompt=prompt)
         self.client = client if client is not None else get_default_client()
 

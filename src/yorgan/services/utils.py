@@ -1,5 +1,6 @@
 import base64
 import mimetypes
+import pymupdf
 
 
 def encode_bytes_for_transfer(
@@ -44,3 +45,47 @@ def get_mime_type(filename):
         raise ValueError(f"Unsupported file type: {filename}")
 
     return mime_type
+
+
+def count_pdf_pages(content: bytes) -> int:
+    """
+    Return number of pages in a PDF document.
+
+    Args:
+        content: Document content as bytes
+
+    Returns:
+        The number of pages
+    """
+    doc = pymupdf.open(stream=content, filetype="pdf")
+    page_count = len(doc)
+    doc.close()
+    return page_count
+
+
+def split_pdf_pages(content: bytes) -> list[bytes]:
+    """
+    Split a PDF document into individual pages using PyMuPDF.
+
+    Args:
+        content: Full PDF document as bytes
+
+    Returns:
+        List of individual page PDFs as bytes
+    """
+    doc = pymupdf.open(stream=content, filetype="pdf")
+    pages = []
+
+    for page_num in range(len(doc)):
+        # Create a new PDF with just this page
+        single_page_doc = pymupdf.open()
+        single_page_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+
+        # Convert to bytes
+        page_bytes = single_page_doc.tobytes()
+        single_page_doc.close()
+
+        pages.append(page_bytes)
+
+    doc.close()
+    return pages

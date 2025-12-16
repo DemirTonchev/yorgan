@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Optional, Type, TypeVar, override
 import openai
 from .base import (
-    ParseService,
+    LLMParseService,
     ParseResponse,
     LLMStructuredOutputService,
     ParseExtractService,
@@ -26,7 +26,7 @@ def get_default_client():
     return openai.AsyncOpenAI()
 
 
-class OpenAIParseService(ParseService[ParseResponse]):
+class OpenAIParseService(LLMParseService[ParseResponse]):
     """
     A Parse Service implementation using OpenAI.
     """
@@ -38,12 +38,13 @@ class OpenAIParseService(ParseService[ParseResponse]):
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None
     ):
-        super().__init__(response_type=ParseResponse, cache=cache)
+        super().__init__(
+            response_type=ParseResponse,
+            model=model,
+            prompt=prompt,
+            cache=cache
+        )
         self.client = client if client is not None else get_default_client()
-        self.model = model
-        if prompt is None:
-            prompt = """Your task is to extract text from documents. Format it nicely as a markdown."""
-        self.prompt = prompt
         self._supported_file_types = {"png", "jpeg", "jpg", "gif", "pdf"}
 
     @override
@@ -110,12 +111,6 @@ class OpenAIStructuredOutputService(LLMStructuredOutputService[T]):
         prompt: Optional[str] = None,
         cache: OptionalCacheType = None
     ):
-        if prompt is None:
-            prompt = """\
-You extract structured information from documents. Review the following document and return the extracted data in the specified format.
-Document:
-{parse_response_markdown}
-"""
         super().__init__(response_type=response_type, cache=cache, model=model, prompt=prompt)
         self.client = client if client is not None else get_default_client()
 
