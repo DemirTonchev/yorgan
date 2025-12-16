@@ -31,6 +31,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
     def __init__(
         self,
         base_parse_service: LLMParseService[PARSE_T],
+        page_threshold: int = 10
     ):
         """
         Initialize with an existing parse service to use for individual pages.
@@ -46,6 +47,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
         )
         self.base_parse_service = base_parse_service
         self.service_name = "Multipage_" + base_parse_service.service_name
+        self.page_threshold = page_threshold
 
     def _should_process_multipage(self, filename: str, content: bytes) -> bool:
         """
@@ -61,7 +63,7 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
             content: Document content as bytes
 
         Returns:
-            True if it's a PDF with more than 1 page, False otherwise
+            True if it's a PDF with more than page_threshold pages, False otherwise
         """
         mime_type = get_mime_type(filename)
 
@@ -69,9 +71,9 @@ class MultipageLLMParseService(LLMParseService[PARSE_T]):
         if mime_type != "application/pdf":
             return False
 
-        # Check if PDF has more than 1 page
+        # Check if PDF has more than page_threshold pages
         page_count = count_pdf_pages(content)
-        return page_count > 1
+        return page_count > self.page_threshold
 
     async def parse(
         self,
