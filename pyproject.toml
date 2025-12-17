@@ -1,16 +1,19 @@
 [project]
-authors = [{ name = "Demir Tonchev", email = "tonchev.demir@gmail.com" }]
+authors = [
+    { name = "Demir Tonchev", email = "tonchev.demir@gmail.com" },
+    { name = "Aleksander Bikov", email = "asbikov.demir@gmail.com" }
+    ]
 name = "yorgan"
 requires-python = ">=3.12,<3.14"
 version = "0.1.0"
 dependencies = [
     "pydantic>=2.11.7,<3",
-    "google-adk>=1.16.0,<2",
+    "google-adk>=1.21.0,<2",
     "aiocache[redis]>=0.12.3,<1",
     "redis>=7.1.0,<8",
     "orjson>=3.11.4,<4",
-    "fastapi[standard]>=0.118.3,<1",
     "landingai-ade>=1.2.0,<2",
+    "pymupdf>=1.26.5,<2",
 ]
 
 
@@ -57,4 +60,4 @@ postinstall = "pip install --no-build-isolation --no-deps --disable-pip-version-
 [tool.pixi.dependencies]
 
 [dependency-groups]
-dev = ["pytest", "pytest-asyncio", "pymupdf>=1.26.5,<2"]
+dev = ["pytest", "pytest-asyncio"]
