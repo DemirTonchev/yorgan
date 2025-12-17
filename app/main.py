@@ -28,8 +28,6 @@ from yorgan.datamodels import APIParseResponse, APIExtractResponse
 from yorgan.services.gemini import (
     GeminiStructuredOutputService,
 )
-from yorgan.services.base import LLMParseService, LLMStructuredOutputService
-from yorgan.services.multipage import MultipageLLMParseService, MultipageLLMStructuredOutputService
 from yorgan.utils import SchemaDict, json_schema_to_pydantic_model, SchemaConversionError
 from app.app_settings import settings
 from app.app_utils import generate_hashed_filename
@@ -147,11 +145,8 @@ async def parse(
 
     content = await file.read()
     filename = file.filename
+    
     parse_service = get_parse_service(option, cache=CACHE, **service_kwargs)
-
-    # use the mulitpage version of LLM based services
-    if (isinstance(parse_service, LLMParseService)):
-        parse_service = MultipageLLMParseService(parse_service=parse_service)
 
     filename_key = generate_hashed_filename(filename, content)
     try:
@@ -221,15 +216,11 @@ async def extract(
 
     filename = metadata.get("filename", "unknown")
 
+    extract_service = get_extract_service(option, response_type=ExtractionModel, cache=CACHE, **service_kwargs)
+
     # this way we guarantee that the hit the correct cache if any on model change back and forth.
     # json_dumps again is not ideal but we want to sort the keys right to guarantee same hash
     filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + markdown.encode())
-
-    extract_service = get_extract_service(option, response_type=ExtractionModel, cache=CACHE, **service_kwargs)
-
-    # use the mulitpage version of LLM based services
-    if (isinstance(extract_service, LLMStructuredOutputService)):
-        extract_service = MultipageLLMStructuredOutputService(structured_output_service=extract_service)
 
     structured_output = await extract_service(
         filename=filename_key,
