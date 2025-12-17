@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Generic, List, Optional, Protocol, Type, TypeVar
@@ -26,21 +25,29 @@ PAGE_BREAK = "<!-- PAGE BREAK -->"
 
 class BaseService(ABC, Generic[T]):
     """
-    Class Abstract base class for all Services that have a response type.
+    Abstract base class for all Services that have a response type.
     """
 
     def __init__(self, response_type: Type[T], cache: OptionalCacheType = None):
+        """
+        Args:
+            response_type: The Pydantic model class for the service's response
+            cache: Optional cache instance for storing results. Defaults to NullCache.
+        """
         self.response_type = response_type
         self.cache = cache or NullCache()
 
     def __init_subclass__(subclass):  # type: ignore
+        """
+        Automatically set the service_name attribute for all subclasses.
+        """
         super().__init_subclass__()
         subclass.service_name = subclass.__qualname__
 
 
 class ParseService(BaseService[PARSE_T]):
     """
-    Class for a Service that performs Parsing or Optical Character Recognition (OCR) of a document.
+    Service that performs Parsing or Optical Character Recognition (OCR) of a document.
     """
 
     @abstractmethod
@@ -50,12 +57,19 @@ class ParseService(BaseService[PARSE_T]):
             content: bytes,
             *kwargs,
     ) -> PARSE_T:
-        """Processes document content and returns a parsed representation."""
+        """
+        Processes document content and returns a parsed representation.
+
+        Args:
+            filename: Name of the file being parsed
+            content: Raw document content as bytes
+            **kwargs: Additional arguments for parsing
+
+        Returns:
+            Parsed response containing markdown representation of the document
+        """
         ...
 
-    # maybe add call method for all services so that they can be used by some other abstraction that
-    # does not know about specific methods, ocr, parse.... etc
-    # suggestion: if we keep the decorator, change __call__ to something else, for consistency with other services
     @cache_result(key_params=['filename'])
     async def __call__(
             self,
@@ -63,6 +77,17 @@ class ParseService(BaseService[PARSE_T]):
             content: bytes,
             **kwargs
     ) -> PARSE_T:
+        """
+        Cached entry point for parsing a document.
+
+        Args:
+            filename: Name of the file being parsed
+            content: Raw document content as bytes
+            **kwargs: Additional arguments passed to parse()
+
+        Returns:
+            Parsed response containing markdown representation of the document
+        """
         return await self.parse(filename, content, **kwargs)
 
 
@@ -94,6 +119,15 @@ Insert the following page break between consecutive pages:
         cache: OptionalCacheType = None,
         page_threshold: int = 10
     ):
+        """
+        Args:
+            response_type: The Pydantic model class for the service's response
+            model: Name/identifier of the LLM/VLM model to use
+            prompt: Custom prompt template. Defaults to DEFAULT_PROMPT.
+            cache: Optional cache instance for storing results
+            page_threshold: Maximum number of pages to parse in one call. PDFs exceeding
+                this are split and parsed page-by-page. Defaults to 10.
+        """
         super().__init__(response_type=response_type, cache=cache)
         self.model = model
         self.prompt = prompt if prompt is not None else self.DEFAULT_PROMPT
@@ -107,9 +141,8 @@ Insert the following page break between consecutive pages:
         Images and other document types return False.
 
         Args:
-            filename (str): Name or path of the file to check. The extension is used
+            filename: Name or path of the file to check. The extension is used
                 to guess the MIME type.
-
             content: Document content as bytes
 
         Returns:
@@ -132,6 +165,17 @@ Insert the following page break between consecutive pages:
         content: bytes,
         **kwargs
     ) -> PARSE_T:
+        """
+        Cached wrapper for parsing a single page.
+
+        Args:
+            filename: Name of the file being parsed
+            content: Page content as bytes
+            **kwargs: Additional arguments passed to parse()
+
+        Returns:
+            Parsed response for the single page
+        """
         return await self.parse(filename, content, **kwargs)
 
     @cache_result(key_params=['filename'])
@@ -143,12 +187,12 @@ Insert the following page break between consecutive pages:
     ) -> PARSE_T:
         """
         Parse a document. If it's a multi-page PDF, each page is parsed individually.
-        Otherwise, use the LLM/VLM is prompted directly.
+        Otherwise, the LLM/VLM is prompted directly.
 
         Args:
             filename: Name of the file
             content: Full document content as bytes
-            **kwargs: Additional arguments passed to LLM/VLM
+            **kwargs: Additional arguments passed to parse()
 
         Returns:
             ParseResponse with markdown content
@@ -192,7 +236,7 @@ Insert the following page break between consecutive pages:
 
 class StructuredOutputService(BaseService[T]):
     """
-    Class for a Service that extracts structured output using a language model.
+    Service that extracts structured output using a language model.
     """
 
     @abstractmethod
@@ -201,7 +245,16 @@ class StructuredOutputService(BaseService[T]):
         filename: str,
         parse_response: ParseResponse,
     ) -> T:
-        """Generates a structured Pydantic object from parsed content."""
+        """
+        Generates a structured Pydantic object from parsed content.
+
+        Args:
+            filename: Name of the source file
+            parse_response: Parsed document with markdown content
+
+        Returns:
+            Structured output as defined by response_type
+        """
         ...
 
     @cache_result(key_params=['filename'])
@@ -211,6 +264,17 @@ class StructuredOutputService(BaseService[T]):
             parse_response: ParseResponse,
             **kwargs
     ) -> T:
+        """
+        Cached entry point for extracting structured data.
+
+        Args:
+            filename: Name of the source file
+            parse_response: Parsed document with markdown content
+            **kwargs: Additional arguments (currently unused)
+
+        Returns:
+            Structured output as defined by response_type
+        """
         return await self.extract(filename, parse_response, **kwargs)
 
 
@@ -265,6 +329,16 @@ Document:
         page_threshold: int = 10,
         cache: OptionalCacheType = None,
     ):
+        """
+        Args:
+            response_type: The Pydantic model class for the structured output
+            model: Name/identifier of the LLM model to use
+            prompt: Custom prompt template for single-page extraction. Defaults to DEFAULT_PROMPT.
+            multipage_prompt: Custom prompt template for multi-page extraction. Defaults to DEFAULT_MULTIPAGE_PROMPT.
+            page_threshold: Maximum number of pages to extract in one call. Documents exceeding
+                this are processed page-by-page with sliding context. Defaults to 10.
+            cache: Optional cache instance for storing results
+        """
         super().__init__(response_type=response_type, cache=cache)
         if model is None:
             raise ValueError(
@@ -277,7 +351,15 @@ Document:
         self.page_threshold = page_threshold
 
     def format_prompt(self, parse_response: ParseResponse) -> str:
-        """Format the prompt template with the parsed document content."""
+        """
+        Format the prompt template with the parsed document content.
+
+        Args:
+            parse_response: Parsed document containing markdown
+
+        Returns:
+            Formatted prompt string with markdown content inserted
+        """
         # markdown may contain {} brackets
         return self.prompt.replace("{parse_response_markdown}", parse_response.markdown)
 
@@ -321,11 +403,12 @@ Document:
 
     def _create_wrapper_type(self) -> Type[BaseModel]:
         """
-        Create a wrapper type where extracted_data has all fields as optional.
+        Create a wrapper type where extracted_data has all fields as optional,
+        and where notes are added to keep track of information that is relevant.
         This allows the LLM to gradually fill in required fields across multiple pages.
 
         Returns:
-            Wrapper model with optional extracted_data fields
+            Wrapper model with optional extracted_data fields and notes field
         """
 
         class StructuredOutputWrapper(BaseModel, Generic[T]):
@@ -358,8 +441,19 @@ Document:
             parse_response: ParseResponse,
             **kwargs
     ) -> T:
+        """
+        Cached wrapper for extracting from a single page.
+
+        Args:
+            filename: Name of the file being processed
+            parse_response: Parsed content for this page
+            **kwargs: Additional arguments passed to extract()
+
+        Returns:
+            Structured output for the single page
+        """
         return await self.extract(filename, parse_response, **kwargs)
-    
+
     @cache_result(key_params=['filename'])
     async def __call__(
         self,
@@ -369,15 +463,18 @@ Document:
         """
         Extract structured data from parsed content.
 
-        For documents with pages above the threshold, extracts each page separately.
-        Otherwise, prompts the LLM directly.
+        For documents with pages above the threshold, extracts each page separately
+        using a sliding window context (previous, current, next page). The model
+        maintains accumulated data and notes across pages.
+
+        For shorter documents, prompts the LLM directly.
 
         Args:
             filename: Name of the source file
             parse_response: Parsed document with markdown content
 
         Returns:
-            Structured output
+            Structured output as defined by response_type
         """
         # Split by pages
         pages = parse_response.markdown.split(PAGE_BREAK)
@@ -455,22 +552,47 @@ Document:
         final_data_dict = current_data.model_dump()
         return self.response_type(**final_data_dict)
 
+
 R = TypeVar("R", bound=BaseModel, covariant=True)
 
 
 class ParseExtractProtocol(Protocol[R]):
-    """Protocol defining the interface for ParseExtract services.
+    """
+    Protocol defining the interface for ParseExtract services.
 
     Any object implementing these methods can be used as ParseExtractService.
     """
 
-    async def parse_extract(self, filename: str, content: bytes) -> R: ...
-    async def __call__(self, filename: str, content: bytes) -> R: ...
+    async def parse_extract(self, filename: str, content: bytes) -> R:
+        """
+        Parse and extract structured data in one step.
+
+        Args:
+            filename: Name of the file being processed
+            content: Raw document content as bytes
+
+        Returns:
+            Structured output
+        """
+        ...
+
+    async def __call__(self, filename: str, content: bytes) -> R:
+        """
+        Cached entry point for parse and extract.
+
+        Args:
+            filename: Name of the file being processed
+            content: Raw document content as bytes
+
+        Returns:
+            Structured output
+        """
+        ...
 
 
 class ParseExtractService(BaseService[T]):
     """
-    Class for a Service that parses and extracts structured output using a language model in one step.
+    Service that parses and extracts structured output using a language model in one step.
     """
 
     @abstractmethod
@@ -480,7 +602,17 @@ class ParseExtractService(BaseService[T]):
         content: bytes,
         mime_type: Optional[str] = None
     ) -> T:
-        """Generates a structured Pydantic object from file content."""
+        """
+        Generates a structured Pydantic object from file content.
+
+        Args:
+            filename: Name of the file being processed
+            content: Raw document content as bytes
+            mime_type: Optional MIME type override
+
+        Returns:
+            Structured output as defined by response_type
+        """
         ...
 
     @cache_result(['filename'])
@@ -489,12 +621,22 @@ class ParseExtractService(BaseService[T]):
             filename: str,
             content: bytes
     ) -> T:
+        """
+        Cached entry point for parse and extract.
+
+        Args:
+            filename: Name of the file being processed
+            content: Raw document content as bytes
+
+        Returns:
+            Structured output as defined by response_type
+        """
         return await self.parse_extract(filename, content)
 
 
 class ParseExtractPipelineService(Generic[T]):
     """
-    An end-to-end document parsing Service using two steps: parse and Structured Output.
+    An end-to-end document parsing Service using two steps: parse and structured output.
     It orchestrates a ParseService and a StructuredOutputService.
     """
 
@@ -503,6 +645,11 @@ class ParseExtractPipelineService(Generic[T]):
         parse_service: ParseService[PARSE_T],
         structured_output_service: StructuredOutputService[T],
     ):
+        """
+        Args:
+            parse_service: Service instance for the parse step
+            structured_output_service: Service instance for the extract step
+        """
         self.parse_service = parse_service
         self.structured_output_service = structured_output_service
 
@@ -512,7 +659,15 @@ class ParseExtractPipelineService(Generic[T]):
         content: bytes,
     ) -> T:
         """
-        Performs end-to-end document parsing and structuring. Save immediate intermediate results in the object.
+        Performs end-to-end document parsing and structuring.
+        Saves immediate intermediate results in the object.
+
+        Args:
+            filename: Name of the file being processed
+            content: Raw document content as bytes
+
+        Returns:
+            Structured output as defined by the structured_output_service's response type
         """
         ocr_response = await self.parse_service(filename, content)
         self.ocr_response = ocr_response
@@ -526,5 +681,15 @@ class ParseExtractPipelineService(Generic[T]):
             filename: str,
             content: bytes,
     ) -> T:
+        """
+        Entry point for the pipeline.
+
+        Args:
+            filename: Name of the file being processed
+            content: Raw document content as bytes
+
+        Returns:
+            Structured output from the complete pipeline
+        """
         structured_output = await self.parse_extract(filename, content)
         return structured_output
