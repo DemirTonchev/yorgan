@@ -303,6 +303,10 @@ You are extracting structured information from a multi-page document, processing
 Unless it is the first or the last page, you will receive the previous, current, and next pages.
 You will also receive the extracted data so far, and relevant notes from previous pages.
 
+When you extract numbers normalize every extracted numeric value to its true numeric form by applying the unit multiplier,
+(e.g., thousands x1000; millions x1000000; milli x0.001; micro x0.000001),
+so the output contains the correctly scaled integer or floating-point value.
+
 Your task:
 1. Add any NEW values based on information found on the current page to the extracted_data
 2. PRESERVE previously extracted data, unless you are completely certain that the values need to be changed based on new information
