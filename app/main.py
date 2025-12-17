@@ -51,27 +51,7 @@ CACHE = SimpleMemoryCacheWithPersistence(persist_dir=Path(__file__).parent / './
 # CACHE = RedisCache(serializer=PickleSerializer())
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Initializes the application state and services on startup.
-    """
-    if hasattr(CACHE, '_cache'):
-        for option in ParseServiceOptions._member_names_[:-1]:
-            parse_service = get_parse_service(option, CACHE)
-            try:
-                if hasattr(parse_service.cache, 'preload'):
-                    await parse_service.cache.preload(parse_service, "auto")
-            except pydantic.ValidationError as e:
-                e.add_note("Cache preload failed due to Validation. Probably models changed.")
-                raise
-
-        pprint(list(CACHE._cache.keys()))
-
-    yield
-
-
-app = FastAPI(lifespan=lifespan, default_response_class=ORJSONResponse)
+app = FastAPI(default_response_class=ORJSONResponse)
 
 
 @app.exception_handler(Exception)
