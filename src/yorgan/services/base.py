@@ -508,7 +508,7 @@ Document:
                 page_context = self._get_page_context(pages, page_num, total_pages)
 
                 # Format the multipage prompt with current state
-                current_data_str = str(current_data.model_dump()) if current_data else "None"
+                current_data_str = str(current_data.model_dump(mode="json")) if current_data else "None"
                 notes_str = notes if notes else ""
 
                 formatted_prompt = self.multipage_prompt.format(
