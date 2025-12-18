@@ -35,22 +35,34 @@ class SimpleMemoryCacheWithPersistence(SimpleMemoryCache):
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         super().__init__(serializer=serializer, **kwargs)
 
+    async def _get(self, key, encoding="utf-8", _conn=None):
+        # try loading the value from memory cache
+        value = await super()._get(key=key, encoding=encoding, _conn=_conn)
+
+        if not value:
+            # check if there is a json on disk
+            json_filename_key = key + '.json'
+            saved_json_path = self.persist_dir / Path(*json_filename_key.split(':'))
+            if saved_json_path.is_file():
+                value = saved_json_path.read_text(encoding=encoding)
+                # store the loaded value in memory cache
+                await super()._set(key=key, value=value, _conn=_conn)
+
+        return value
+
     async def _set(self, key, value, ttl=None, _cas_token=None, _conn=None):
         # it is decided that ":" is namespace separator see redis convention
         json_filename_key = key + '.json'
         save_path = self.persist_dir / Path(*json_filename_key.split(':'))
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # value usually is pydantic model
-        json_str = value.model_dump_json(indent=4)
-
-        # Write file in a separate thread
+        # write the json to disk in a separate thread
         await asyncio.to_thread(
             save_path.write_text,
-            json_str,
+            value,
             encoding="utf-8"
         )
-        # we save the json to disk but the pydantic model is in the cache
+        # also save the json in the memory cache
         return await super()._set(key=key, value=value, ttl=ttl, _cas_token=_cas_token, _conn=_conn)
 
     async def _clear(self, namespace=None, _conn=None):
@@ -77,23 +89,6 @@ class SimpleMemoryCacheWithPersistence(SimpleMemoryCache):
         if ns is not None:
             return "{}:{}".format(namespace, _ensure_key(key))
         return key
-
-    async def preload(self, service: BaseService[T], namespace: Optional[str] = None, filename_key: Optional[str] = None):
-
-        if namespace == "auto" and service:
-            ns = getattr(service, "service_name", service.__class__.__qualname__)
-        else:
-            ns = namespace
-
-        service_dir_cache = self.persist_dir / Path(ns or "")
-        for saved_json_path in service_dir_cache.rglob("*.json"):
-            if filename_key and filename_key != saved_json_path.stem:
-                continue
-            ns_key = self.build_key(key=saved_json_path.stem, namespace=ns)
-            loaded_object = service.response_type.model_validate_json(
-                saved_json_path.read_text(encoding="utf-8")
-            )
-            await super()._set(key=ns_key, value=loaded_object)
 
 
 class NullCache(BaseCache):
@@ -152,16 +147,18 @@ def cache_result(key_params: list[str]) -> Callable:
 
             ns = getattr(self, "service_name", self.__class__.__qualname__)
 
-            value = await self.cache.get(cache_key, namespace=ns)
-            if value:
+            cached_json = await self.cache.get(cache_key, namespace=ns)
+            if cached_json:
+                value = self.response_type.model_validate_json(cached_json)
                 if is_dev_env():
                     print(f"------ cache hit with key {cache_key}")
             else:
                 value = await func(self, *args, **kwargs)
+                cached_json = value.model_dump_json(indent=2)
                 if is_dev_env() and not isinstance(self.cache, NullCache):
                     print(f"------ storing value for key {cache_key}")
 
-                await self.cache.set(key=cache_key, value=value, namespace=ns)
+                await self.cache.set(key=cache_key, value=cached_json, namespace=ns)
 
             return value
 
