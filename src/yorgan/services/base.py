@@ -675,7 +675,7 @@ class ParseExtractPipelineService(Generic[T]):
         """
         ocr_response = await self.parse_service(filename, content)
         self.ocr_response = ocr_response
-        structured_output_response = await self.structured_output_service.extract(filename, ocr_response)
+        structured_output_response = await self.structured_output_service(filename, ocr_response)
         self.structured_output_response = structured_output_response
 
         return structured_output_response
