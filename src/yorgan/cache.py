@@ -151,12 +151,12 @@ def cache_result(key_params: list[str]) -> Callable:
             if cached_json:
                 value = self.response_type.model_validate_json(cached_json)
                 if is_dev_env():
-                    print(f"------ cache hit with key {cache_key}")
+                    print(f"------ cache hit with key {cache_key}, ns {ns}")
             else:
                 value = await func(self, *args, **kwargs)
                 cached_json = value.model_dump_json(indent=2)
                 if is_dev_env() and not isinstance(self.cache, NullCache):
-                    print(f"------ storing value for key {cache_key}")
+                    print(f"------ storing value for key {cache_key}, ns {ns}")
 
                 await self.cache.set(key=cache_key, value=cached_json, namespace=ns)
 
