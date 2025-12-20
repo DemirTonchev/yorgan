@@ -98,7 +98,6 @@ class Registry(Generic[T]):
     ) -> None:
         try:
             module = importlib.import_module(package_path)
-
             for _, obj in inspect.getmembers(module, inspect.isclass):
                 if self._is_valid_service(obj, service_class):
                     typed_obj = cast(type[T], obj)
@@ -177,8 +176,8 @@ class ServiceRegistries:
     @property
     def parse_extract(self) -> Registry[ParseExtractService]:
         """Get or create the parse extract registry"""
-        self._extract = self._load_registry(self._parse_extract, ParseExtractService)
-        return self._extract
+        self._parse_extract = self._load_registry(self._parse_extract, ParseExtractService)
+        return self._parse_extract
 
     def initialize_all(self) -> None:
         """
@@ -198,12 +197,12 @@ class ServiceRegistries:
             self._parse.clear()
         if self._structured:
             self._structured.clear()
-        if self._extract:
-            self._extract.clear()
+        if self._parse_extract:
+            self._parse_extract.clear()
 
         self._parse = None
         self._structured = None
-        self._extract = None
+        self._parse_extract = None
 
     def get_all(self) -> dict[str, AnyServiceRegistry]:
         """Get all initialized registries as a dictionary."""
