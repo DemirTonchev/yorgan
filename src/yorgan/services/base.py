@@ -28,11 +28,7 @@ class BaseService(ABC, Generic[T]):
     Abstract base class for all Services that have a response type.
     """
 
-    def __init__(
-        self,
-        response_type: Type[T],
-        cache: OptionalCacheType = None
-    ):
+    def __init__(self, response_type: Type[T], cache: OptionalCacheType = None):
         """
         Args:
             response_type: The Pydantic model class for the service's response
@@ -41,9 +37,7 @@ class BaseService(ABC, Generic[T]):
         self.response_type = response_type
         self.cache = cache or NullCache()
 
-    def __init_subclass__(
-        subclass
-    ):  # type: ignore
+    def __init_subclass__(subclass):  # type: ignore
         """
         Automatically set the service_name attribute for all subclasses.
         """
