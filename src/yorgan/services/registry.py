@@ -5,7 +5,7 @@ import importlib
 from pathlib import Path
 from typing import Any, Optional, TypeVar, Generic, Union, cast
 import inspect
-from .base import BaseService, ParseService, LLMStructuredOutputService, ParseExtractService
+from .base import BaseService, ParseService, StructuredOutputService, ParseExtractService
 
 T = TypeVar("T", bound=BaseService)
 
@@ -132,7 +132,7 @@ class Registry(Generic[T]):
 
 AnyServiceRegistry = Union[
     Registry[ParseService],
-    Registry[LLMStructuredOutputService],
+    Registry[StructuredOutputService],
     Registry[ParseExtractService]
 ]
 
@@ -144,7 +144,7 @@ class ServiceRegistries:
 
     def __init__(self) -> None:
         self._parse: Optional[Registry[ParseService]] = None
-        self._structured: Optional[Registry[LLMStructuredOutputService]] = None
+        self._structured: Optional[Registry[StructuredOutputService]] = None
         self._parse_extract: Optional[Registry[ParseExtractService]] = None
 
     def _load_registry(
@@ -169,9 +169,9 @@ class ServiceRegistries:
         return self._parse
 
     @property
-    def structured(self) -> Registry[LLMStructuredOutputService]:
+    def structured(self) -> Registry[StructuredOutputService]:
         """Get or create the structured output registry"""
-        self._structured = self._load_registry(self._structured, LLMStructuredOutputService)
+        self._structured = self._load_registry(self._structured, StructuredOutputService)
         return self._structured
 
     @property
@@ -245,7 +245,7 @@ def get_parse_registry() -> Registry[ParseService]:
     return get_registries().parse
 
 
-def get_structured_registry() -> Registry[LLMStructuredOutputService]:
+def get_structured_registry() -> Registry[StructuredOutputService]:
     return get_registries().structured
 
 
