@@ -5,14 +5,13 @@ from typing import TYPE_CHECKING, Any, Optional, override
 from landingai_ade import AsyncLandingAIADE
 from landingai_ade.types import ParseResponse as LandingParseResponse
 
-from .base import (
-    ParseService,
-    StructuredOutputService,
-    ParseExtractService,
-)
+from yorgan.cache import cache_result
+
+from .base import ParseExtractService, ParseService, StructuredOutputService
 
 if TYPE_CHECKING:
     from aiocache.base import BaseCache
+
     from yorgan.cache import SimpleMemoryCacheWithPersistence
     OptionalCacheType = Optional[BaseCache | SimpleMemoryCacheWithPersistence]
 
@@ -35,7 +34,8 @@ class AgenticDocParseService(ParseService[LandingParseResponse]):  # type: ignor
         self._client = AsyncLandingAIADE(**kwargs)
 
     @override
-    async def parse(
+    @cache_result(key_params=['filename'])
+    async def __call__(
         self,
         filename: str,
         content: bytes,

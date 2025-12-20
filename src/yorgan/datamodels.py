@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Literal, Optional, TypedDict
+from typing import Any, ClassVar, Literal, Optional, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -19,7 +19,31 @@ class Metadata(BaseModel):
 
 
 class ParseResponse(BaseModel):
+    PAGE_BREAK: ClassVar[str] = "<!-- PAGE BREAK -->"
+
     markdown: str
+
+# TODO: this information will be available in chunks
+
+
+def add_explicit_page_numbering(parse_response: ParseResponse):
+    """
+    Adds explicit page numbering in the markdown of the parse response.
+
+    Args:
+        parse_response: a response from parse service
+
+    Returns:
+        The parse response with modified markdown
+    """
+    page_markdowns = parse_response.markdown.split(ParseResponse.PAGE_BREAK)
+    total = len(page_markdowns)
+    edited_page_markdowns = []
+    for page_num, page_markdown in enumerate(page_markdowns, start=1):
+        edited_page_markdown = f"--- PAGE ({page_num}/{total}) ---" + "\n\n" + page_markdown
+        edited_page_markdowns.append(edited_page_markdown)
+    edited_markdown = ParseResponse.PAGE_BREAK.join(edited_page_markdowns)
+    parse_response.markdown = edited_markdown
 
 
 class ParseResponseMetaData(ParseResponse):

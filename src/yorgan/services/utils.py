@@ -1,5 +1,6 @@
 import base64
 import mimetypes
+
 import pymupdf
 
 
@@ -63,29 +64,38 @@ def count_pdf_pages(content: bytes) -> int:
     return page_count
 
 
-def split_pdf_pages(content: bytes) -> list[bytes]:
+def split_pdf(
+    content: bytes,
+    window: int = 1,
+    overlap: int = 0
+) -> list[bytes]:
     """
-    Split a PDF document into individual pages using PyMuPDF.
+    Split a PDF document into batches using PyMuPDF.
 
     Args:
-        content: Full PDF document as bytes
+        content: Full PDF document as bytes.
+        window: Number of pages per returned batch (default 1).
+        overlap: Number of overlapping pages between consecutive batches (default 0).
 
     Returns:
-        List of individual page PDFs as bytes
+        List of PDF bytes, each entry contains `window` pages (last batch may be smaller).
     """
+    if window <= 0:
+        raise ValueError("window must be greater than 0")
+
+    if overlap < 0 or overlap >= window:
+        raise ValueError("overlap must satisfy 0 <= overlap < window")
+
     doc = pymupdf.open(stream=content, filetype="pdf")
-    pages = []
+    total = len(doc)
+    batches = []
 
-    for page_num in range(len(doc)):
-        # Create a new PDF with just this page
-        single_page_doc = pymupdf.open()
-        single_page_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-
-        # Convert to bytes
-        page_bytes = single_page_doc.tobytes()
-        single_page_doc.close()
-
-        pages.append(page_bytes)
+    for start in range(0, total - overlap, window - overlap):
+        end = min(start + window - 1, total - 1)
+        batch = pymupdf.open()
+        batch.insert_pdf(doc, from_page=start, to_page=end)
+        batches.append(batch.tobytes())
+        batch.close()
 
     doc.close()
-    return pages
+    return batches

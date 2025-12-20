@@ -2,7 +2,7 @@ from .base import (
     ParseService,
     StructuredOutputService,
     ParseExtractService,
-    ParseExtractPipelineService,
+    ParseExtractPipeline,
     ParseExtractProtocol,
 )
 
@@ -10,6 +10,6 @@ __all__ = [
     "ParseService",
     "StructuredOutputService",
     "ParseExtractService",
-    "ParseExtractPipelineService",
+    "ParseExtractPipeline",
     "ParseExtractProtocol",
 ]
