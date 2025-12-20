@@ -571,7 +571,6 @@ Pages:
             batch_parse_response_markdown=batch_parse_response.markdown
         )
 
-    @cache_result(key_params=['filename'])
     async def _extract(
         self,
         filename: str,
