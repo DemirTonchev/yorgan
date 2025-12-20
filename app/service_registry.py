@@ -66,6 +66,7 @@ def get_extract_service(
     return extract_service_class(response_type=response_type, cache=cache, **kwargs)
 
 
+@lru_cache(maxsize=10)
 def get_parse_extract_service(
         option: ParseExctractServiceOptions,
         response_type: Type[T],
