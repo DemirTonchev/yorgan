@@ -50,6 +50,8 @@ class BaseLLM(ABC):
     Abstract base class for LLM interactions.
     Subclasses implement the generate method for specific LLM providers.
     """
+    # Subclasses should define a default model
+    DEFAULT_MODEL: str
 
     @abstractmethod
     async def generate(
@@ -77,6 +79,51 @@ class BaseLLM(ABC):
             Structured output as defined by response_type
         """
         ...
+
+
+class LLMServiceMixin:
+    """
+    Mixin that provides LLM and model management for LLM-based services.
+
+    Subclasses can set LLM_TYPE as class attribute to enable provider shortcuts.
+    """
+
+    # Class attributes for provider-specific subclasses
+    LLM_TYPE: Optional[Type[BaseLLM]] = None
+
+    def _initialize_llm_params(
+        self,
+        llm: Optional[BaseLLM] = None,
+        model: Optional[str] = None
+    ) -> tuple[BaseLLM, str]:
+        """
+        Initialize LLM and model parameters with fallback to defaults.
+        
+        If llm is not provided, attempts to instantiate LLM_TYPE.
+        If model is not provided, uses llm.DEFAULT_MODEL.
+        
+        Args:
+            llm: BaseLLM instance for LLM interactions. If None, uses LLM_TYPE.
+            model: Name/identifier of the LLM model to use. If None, uses llm.DEFAULT_MODEL.
+        
+        Returns:
+            Tuple of (llm, model) with defaults applied.
+        
+        Raises:
+            ValueError: If llm is None and LLM_TYPE is not set as a class attribute.
+        """
+        if llm is None:
+            if self.LLM_TYPE is not None:
+                llm = self.LLM_TYPE()
+            else:
+                raise ValueError(
+                    f"{self.__class__.__name__} requires either an 'llm' parameter or LLM_TYPE to be set as a class attribute"
+                )
+
+        if model is None:
+            model = llm.DEFAULT_MODEL
+
+        return llm, model
 
 
 class ParseService(BaseService[PARSE_T]):
@@ -107,7 +154,7 @@ class ParseService(BaseService[PARSE_T]):
         ...
 
 
-class LLMParseService(ParseService[PARSE_T]):
+class LLMParseService(ParseService[PARSE_T], LLMServiceMixin):
     """
     Parse service that uses an LLM/VLM with a prompt template.
 
@@ -131,9 +178,9 @@ Insert the following page break between consecutive pages:
 
     def __init__(
         self,
-        response_type: Type[PARSE_T],
-        llm: BaseLLM,
-        model: str,
+        response_type: Type[PARSE_T] = ParseResponse,
+        llm: Optional[BaseLLM] = None,
+        model: Optional[str] = None,
         prompt: Optional[str] = None,
         batch_prompt: Optional[str] = None,
         page_threshold: int = 10,
@@ -156,8 +203,7 @@ Insert the following page break between consecutive pages:
             cache: Optional cache instance for storing results
         """
         super().__init__(response_type=response_type, cache=cache)
-        self.llm = llm
-        self.model = model
+        self.llm, self.model = self._initialize_llm_params(llm, model)
         self.prompt = prompt if prompt else self.DEFAULT_PROMPT
         self.batch_prompt = batch_prompt if batch_prompt else self.DEFAULT_BATCH_PROMPT
         self.page_threshold = page_threshold
@@ -358,7 +404,7 @@ class StructuredOutputService(BaseService[T]):
         return await self.extract(filename, parse_response, **kwargs)
 
 
-class LLMStructuredOutputService(StructuredOutputService[T]):
+class LLMStructuredOutputService(StructuredOutputService[T], LLMServiceMixin):
     """
     Structured output service that uses an LLM with a prompt template.
 
@@ -408,8 +454,8 @@ Pages:
     def __init__(
         self,
         response_type: Type[T],
-        llm: BaseLLM,
-        model: str,
+        llm: Optional[BaseLLM] = None,
+        model: Optional[str] = None,
         prompt: Optional[str] = None,
         batch_prompt: Optional[str] = None,
         page_threshold: int = 10,
@@ -431,8 +477,7 @@ Pages:
             cache: Optional cache instance for storing results
         """
         super().__init__(response_type=response_type, cache=cache)
-        self.llm = llm
-        self.model = model
+        self.llm, self.model = self._initialize_llm_params(llm, model)
         self.prompt = prompt if prompt else self.DEFAULT_PROMPT
         self.batch_prompt = batch_prompt if batch_prompt else self.DEFAULT_BATCH_PROMPT
         self.page_threshold = page_threshold
@@ -833,11 +878,15 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
     A parse extract pipeline that uses an LLM.
     """
 
+    # Class attributes for provider-specific subclasses
+    LLM_PARSE_SERVICE_TYPE: Optional[Type[LLMParseService[ParseResponse]]] = None
+    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE: Optional[Type[LLMStructuredOutputService[T]]] = None
+
     def __init__(
         self,
         response_type: Type[T],
-        parse_service: LLMParseService[ParseResponse],
-        structured_output_service: LLMStructuredOutputService[T],
+        parse_service: Optional[LLMParseService[ParseResponse]] = None,
+        structured_output_service: Optional[LLMStructuredOutputService[T]] = None,
         cache: OptionalCacheType = None,
     ):
         """
@@ -848,8 +897,51 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
             cache: Optional cache instance for storing results. Defaults to NullCache
         """
         super().__init__(response_type=response_type, cache=cache)
-        self.pipeline = ParseExtractPipeline(parse_service=parse_service, structured_output_service=structured_output_service)
+        self.parse_service, self.structured_output_service = self._initialize_services(parse_service, structured_output_service)
+        self.pipeline = ParseExtractPipeline(parse_service=self.parse_service, structured_output_service=self.structured_output_service)
 
+    def _initialize_services(
+        self,
+        parse_service: Optional[LLMParseService[ParseResponse]] = None,
+        structured_output_service: Optional[LLMStructuredOutputService[T]] = None,
+    ) -> tuple[BaseLLM, str]:
+        """
+        Initialize parse_service and structured_output service with fallback to defaults.
+        
+        If parse_service is not provided, attempts to instantiate LLM_PARSE_SERVICE_TYPE.
+        If structured_output_service is not provided, attempts to instantiate LLM_STRUCTURED_OUTPUT_SERVICE_TYPE.
+        
+        Args:
+            parse_service: Service instance for the parse step.
+                If None, uses LLM_PARSE_SERVICE_TYPE
+            structured_output_service: Service instance for the extract step.
+                If None, uses LLM_STRUCTURED_OUTPUT_SERVICE_TYPE  
+
+        Returns:
+            Tuple of (parse_service, structured_output_service) with defaults applied.
+        
+        Raises:
+            ValueError: If parse_service is None and LLM_PARSE_SERVICE_TYPE is not set as a class attribute.
+            ValueError: If structured_output_service is None and LLM_STRUCTURED_OUTPUT_SERVICE_TYPE is not set as a class attribute.
+        """
+        if parse_service is None:
+            if self.LLM_PARSE_SERVICE_TYPE is not None:
+                parse_service = self.LLM_PARSE_SERVICE_TYPE(cache=self.cache)
+            else:
+                raise ValueError(
+                    f"{self.__class__.__name__} requires either an 'parse_service' parameter or LLM_PARSE_SERVICE_TYPE to be set as a class attribute"
+                )
+
+        if structured_output_service is None:
+            if self.LLM_STRUCTURED_OUTPUT_SERVICE_TYPE is not None:
+                structured_output_service = self.LLM_STRUCTURED_OUTPUT_SERVICE_TYPE(response_type=self.response_type, cache=self.cache)
+            else:
+                raise ValueError(
+                    f"{self.__class__.__name__} requires either an 'structured_output_service' parameter or LLM_STRUCTURED_OUTPUT_SERVICE_TYPE to be set as a class attribute"
+                )
+
+        return parse_service, structured_output_service
+    
     async def __call__(
         self,
         filename: str,

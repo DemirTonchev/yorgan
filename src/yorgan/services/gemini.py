@@ -15,8 +15,6 @@ if TYPE_CHECKING:
 
 T = TypeVar('T', bound=BaseModel)
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-
 
 @lru_cache(maxsize=1)
 def get_default_client():
@@ -30,6 +28,7 @@ class GeminiLLM(BaseLLM):
 
     Handles structured output generation from prompts and optional document content.
     """
+    DEFAULT_MODEL = "gemini-2.5-flash"
 
     def __init__(
         self,
@@ -116,119 +115,13 @@ class GeminiLLM(BaseLLM):
 
 
 class GeminiParseService(LLMParseService[ParseResponse]):
-    """
-    Parse Service implementation using Gemini.
-
-    Converts documents (images, PDFs) into markdown using Gemini's vision capabilities.
-    """
-
-    def __init__(
-        self,
-        llm: Optional[GeminiLLM] = None,
-        model: str = DEFAULT_GEMINI_MODEL,
-        prompt: Optional[str] = None,
-        batch_prompt: Optional[str] = None,
-        cache: OptionalCacheType = None,
-        page_threshold: int = 10
-    ):
-        """
-        Args:
-            llm: Optional GeminiLLM instance. If not provided, creates a default instance.
-            model: Name/identifier of the Gemini model to use. Defaults to DEFAULT_GEMINI_MODEL.
-            prompt: Custom prompt template. Defaults to DEFAULT_PROMPT.
-            batch_prompt: Custom batch prompt template. Defaults to DEFAULT_BATCH_PROMPT.
-            cache: Optional cache instance for storing results.
-            page_threshold: Maximum number of pages to parse in one call. PDFs exceeding
-                this are split and parsed page-by-page. Defaults to 10.
-        """
-        llm = llm if llm else GeminiLLM()
-
-        super().__init__(
-            response_type=ParseResponse,
-            llm=llm,
-            model=model,
-            prompt=prompt,
-            batch_prompt=batch_prompt,
-            cache=cache,
-            page_threshold=page_threshold
-        )
+    LLM_TYPE = GeminiLLM
 
 
 class GeminiStructuredOutputService(LLMStructuredOutputService[T]):
-    """
-    Structured output Service implementation using Gemini.
-
-    Extracts structured data from parsed markdown documents.
-    """
-
-    def __init__(
-        self,
-        response_type: Type[T],
-        llm: Optional[GeminiLLM] = None,
-        model: str = DEFAULT_GEMINI_MODEL,
-        prompt: Optional[str] = None,
-        batch_prompt: Optional[str] = None,
-        page_threshold: int = 10,
-        batch_window: int = 6,
-        batch_overlap: int = 1,
-        cache: OptionalCacheType = None,
-    ):
-        """
-        Args:
-            response_type: The Pydantic model class for the structured output.
-            llm: Optional GeminiLLM instance. If not provided, creates a default instance.
-            model: Name/identifier of the Gemini model to use. Defaults to DEFAULT_GEMINI_MODEL.
-            prompt: Custom prompt template for single-page extraction. Defaults to DEFAULT_PROMPT.
-            batch_prompt: Custom prompt template for multi-page extraction. Defaults to DEFAULT_BATCH_PROMPT.
-            page_threshold: Maximum number of pages to extract in one call. Documents exceeding
-                this are processed page-by-page with sliding context. Defaults to 10.
-            batch_window: The length of the sliding window. Defaults to 6.
-            batch_overlap: The length of the overlap. Defaults to 1.
-            cache: Optional cache instance for storing results.
-        """
-        llm = llm if llm else GeminiLLM()
-
-        super().__init__(
-            response_type=response_type,
-            llm=llm,
-            model=model,
-            prompt=prompt,
-            batch_prompt=batch_prompt,
-            page_threshold=page_threshold,
-            batch_window=batch_window,
-            batch_overlap=batch_overlap,
-            cache=cache,
-        )
+    LLM_TYPE = GeminiLLM
 
 
 class GeminiParseExtractPipelineService(LLMParseExtractPipelineService[T]):
-    """
-    End-to-end document parsing Service using Gemini.
-
-    Performs both parsing and extraction in a single step using Gemini's native capabilities.
-    """
-
-    def __init__(
-        self,
-        response_type: Type[T],
-        parse_service: Optional[GeminiParseService[ParseResponse]] = None,
-        structured_output_service: Optional[GeminiStructuredOutputService[T]] = None,
-        cache: OptionalCacheType = None,
-    ):
-        """
-        Args:
-            response_type: The Pydantic model class for the service's response
-            parse_service: Service instance for the parse step
-            structured_output_service: Service instance for the extract step
-            cache: Optional cache instance for storing results. Defaults to NullCache
-        """
-        parse_service = parse_service if parse_service else GeminiParseService(cache=cache)
-        structured_output_service = structured_output_service if structured_output_service else GeminiStructuredOutputService(
-            response_type=response_type, cache=cache)
-
-        super().__init__(
-            response_type=response_type,
-            parse_service=parse_service,
-            structured_output_service=structured_output_service,
-            cache=cache,
-        )
+    LLM_PARSE_SERVICE_TYPE = GeminiParseService
+    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE = GeminiStructuredOutputService

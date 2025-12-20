@@ -14,8 +14,6 @@ if TYPE_CHECKING:
 
 T = TypeVar('T', bound=BaseModel)
 
-DEFAULT_OPENAI_MODEL = "gpt-4.1"
-
 
 @lru_cache(maxsize=1)
 def get_default_client():
@@ -30,6 +28,8 @@ class OpenAILLM(BaseLLM):
     Handles structured output generation from prompts and optional document content
     using OpenAI's responses.parse API.
     """
+
+    DEFAULT_MODEL = "gpt-4.1"
 
     def __init__(
         self,
@@ -131,119 +131,13 @@ class OpenAILLM(BaseLLM):
 
 
 class OpenAIParseService(LLMParseService[ParseResponse]):
-    """
-    Parse Service implementation using OpenAI.
-
-    Converts documents (images, PDFs) into markdown using OpenAI's vision capabilities.
-    """
-
-    def __init__(
-        self,
-        llm: Optional[OpenAILLM] = None,
-        model: str = DEFAULT_OPENAI_MODEL,
-        prompt: Optional[str] = None,
-        batch_prompt: Optional[str] = None,
-        cache: OptionalCacheType = None,
-        page_threshold: int = 10
-    ):
-        """
-        Args:
-            llm: Optional OpenAILLM instance. If not provided, creates a default instance.
-            model: Name/identifier of the OpenAI model to use. Defaults to DEFAULT_OPENAI_MODEL.
-            prompt: Custom prompt template. Defaults to DEFAULT_PROMPT.
-            batch_prompt: Custom batch prompt template. Defaults to DEFAULT_BATCH_PROMPT.
-            cache: Optional cache instance for storing results.
-            page_threshold: Maximum number of pages to parse in one call. PDFs exceeding
-                this are split and parsed page-by-page. Defaults to 10.
-        """
-        llm = llm if llm else OpenAILLM()
-
-        super().__init__(
-            response_type=ParseResponse,
-            llm=llm,
-            model=model,
-            prompt=prompt,
-            batch_prompt=batch_prompt,
-            cache=cache,
-            page_threshold=page_threshold
-        )
+    LLM_TYPE = OpenAILLM
 
 
 class OpenAIStructuredOutputService(LLMStructuredOutputService[T]):
-    """
-    Structured output Service implementation using OpenAI.
-
-    Extracts structured data from parsed markdown documents.
-    """
-
-    def __init__(
-        self,
-        response_type: Type[T],
-        llm: Optional[OpenAILLM] = None,
-        model: str = DEFAULT_OPENAI_MODEL,
-        prompt: Optional[str] = None,
-        batch_prompt: Optional[str] = None,
-        page_threshold: int = 10,
-        batch_window: int = 6,
-        batch_overlap: int = 1,
-        cache: OptionalCacheType = None,
-    ):
-        """
-        Args:
-            response_type: The Pydantic model class for the structured output.
-            llm: Optional OpenAILLM instance. If not provided, creates a default instance.
-            model: Name/identifier of the OpenAI model to use. Defaults to DEFAULT_OPENAI_MODEL.
-            prompt: Custom prompt template for single-page extraction. Defaults to DEFAULT_PROMPT.
-            batch_prompt: Custom prompt template for multi-page extraction. Defaults to DEFAULT_BATCH_PROMPT.
-            page_threshold: Maximum number of pages to extract in one call. Documents exceeding
-                this are processed page-by-page with sliding context. Defaults to 10.
-            batch_window: The length of the sliding window. Defaults to 6.
-            batch_overlap: The length of the overlap. Defaults to 1.
-            cache: Optional cache instance for storing results.
-        """
-        llm = llm if llm else OpenAILLM()
-
-        super().__init__(
-            response_type=response_type,
-            llm=llm,
-            model=model,
-            prompt=prompt,
-            batch_prompt=batch_prompt,
-            page_threshold=page_threshold,
-            batch_window=batch_window,
-            batch_overlap=batch_overlap,
-            cache=cache,
-        )
+    LLM_TYPE = OpenAILLM
 
 
 class OpenAIParseExtractPipelineService(LLMParseExtractPipelineService[T]):
-    """
-    End-to-end document parsing Service using OpenAI.
-
-    Performs both parsing and extraction in a single step using OpenAI's native capabilities.
-    """
-
-    def __init__(
-        self,
-        response_type: Type[T],
-        parse_service: Optional[OpenAIParseService[ParseResponse]] = None,
-        structured_output_service: Optional[OpenAIStructuredOutputService[T]] = None,
-        cache: OptionalCacheType = None,
-    ):
-        """
-        Args:
-            response_type: The Pydantic model class for the service's response
-            parse_service: Service instance for the parse step
-            structured_output_service: Service instance for the extract step
-            cache: Optional cache instance for storing results. Defaults to NullCache
-        """
-        parse_service = parse_service if parse_service else OpenAIParseService(cache=cache)
-        structured_output_service = structured_output_service if structured_output_service else OpenAIStructuredOutputService(
-            response_type=response_type, cache=cache)
-
-        super().__init__(
-            response_type=response_type,
-            parse_service=parse_service,
-            structured_output_service=structured_output_service,
-            cache=cache,
-        )
+    LLM_PARSE_SERVICE_TYPE = OpenAIParseService
+    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE = OpenAIStructuredOutputService
