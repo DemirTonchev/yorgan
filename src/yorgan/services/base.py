@@ -439,47 +439,136 @@ Pages:
         self.batch_window = batch_window
         self.batch_overlap = batch_overlap
 
-        # Create response_type_wrapper with optional fields and notes
-        self._response_type_wrapper = self._create_response_type_wrapper()
-
-    class _StructuredOutputWrapper(BaseModel, Generic[T]):
-        """
-        Wrapper model that includes the structured output and notes for iterative extraction.
-        Used for batch processing.
-        """
-        extracted_data: T | None = Field(
-            default=None,
-            description="The structured data extracted so far"
-        )
-        notes: str = Field(
-            default="",
-            description="Notes about information that may be useful for extraction in subsequent pages"
+        # Create a helper service for processing a single batch
+        self._extract_single_batch = self._ExtractSingleBatchService(
+            parent_type=type(self),
+            response_type=self.response_type,
+            llm=self.llm,
+            model=self.model,
+            batch_prompt=self.batch_prompt,
+            cache=self.cache,
         )
 
-    def _create_response_type_wrapper(self) -> Type[_StructuredOutputWrapper]:
+    class _ExtractSingleBatchService(BaseService[T]):
         """
-        Create a wrapper type where all response_type fields are optional,
-        and where notes are added to keep track of information that is relevant.
-        This allows the LLM to gradually fill in required fields across multiple pages.
-
-        Returns:
-            Wrapper type with optional response_type fields and notes
+        A helper service to extract a single batch.
+        We need this because the cache uses self.response_type for serialization.
         """
+        def __init__(
+            self,
+            parent_type: Type[LLMStructuredOutputService[T]],
+            response_type: Type[T],
+            llm: BaseLLM,
+            model: str,
+            batch_prompt: Optional[str] = None,
+            cache: OptionalCacheType = None,
+        ):
+            # Create response_type_wrapper with optional fields and notes
+            self.response_type = self._create_response_type_wrapper(response_type)
+            
+            super().__init__(response_type=self.response_type, cache=cache)
 
-        # Create a version of response_type with all fields optional
-        optional_fields = {}
-        for field_name, field_info in self.response_type.model_fields.items():
-            optional_fields[field_name] = (
-                Optional[field_info.annotation],
-                Field(default=None, description=field_info.description)
+            # This service should cache in the same namespace as its parent
+            self.service_name = parent_type.__qualname__
+
+            self.batch_prompt = batch_prompt
+            self.llm = llm
+            self.model = model
+
+        class _StructuredOutputWrapper(BaseModel, Generic[T]):
+            """
+            Wrapper model that includes the structured output and notes for iterative extraction.
+            Used for batch processing.
+            """
+            extracted_data: T | None = Field(
+                default=None,
+                description="The structured data extracted so far"
+            )
+            notes: str = Field(
+                default="",
+                description="Notes about information that may be useful for extraction in subsequent pages"
             )
 
-        OptionalResponseType = create_model(
-            f"Optional{self.response_type.__name__}",
-            **optional_fields
-        )
+        def _create_response_type_wrapper(self, response_type: Type[T]) -> Type[_StructuredOutputWrapper]:
+            """
+            Create a wrapper type where all response_type fields are optional,
+            and where notes are added to keep track of information that is relevant.
+            This allows the LLM to gradually fill in required fields across multiple pages.
 
-        return self._StructuredOutputWrapper[OptionalResponseType]
+            Returns:
+                Wrapper type with optional response_type fields and notes
+            """
+
+            # Create a version of response_type with all fields optional
+            optional_fields = {}
+            for field_name, field_info in response_type.model_fields.items():
+                optional_fields[field_name] = (
+                    Optional[field_info.annotation],
+                    Field(default=None, description=field_info.description)
+                )
+
+            OptionalResponseType = create_model(
+                f"Optional{response_type.__name__}",
+                **optional_fields
+            )
+
+            return self._StructuredOutputWrapper[OptionalResponseType]
+
+        def format_batch_prompt(
+            self,
+            batch_parse_response: ParseResponse,
+            current_output: _StructuredOutputWrapper,
+        ) -> str:
+            """
+            Format the batch prompt template with the current batch of pages and extracted data so far.
+
+            Args:
+                batch_parse_response: The current batch of pages as ParseResponse
+                current_output: Extracted data so far with notes
+
+            Returns:
+                Formatted prompt string with markdown content inserted
+            """
+            return self.batch_prompt.format(
+                extracted_data=str(current_output.extracted_data.model_dump(mode="json")) if current_output.extracted_data else "None",
+                notes=current_output.notes if current_output.notes else "",
+                batch_parse_response_markdown=batch_parse_response.markdown
+            )
+
+        @cache_result(key_params=['batch_filename'])
+        async def __call__(
+            self,
+            batch_filename: str,
+            batch_parse_response: ParseResponse,
+            current_output: Optional[_StructuredOutputWrapper] = None,
+            **kwargs
+        ) -> T:
+            """
+            Cached wrapper for extracting from a single batch of pages.
+
+            Args:
+                batch_filename: Name of the file being processed. The extension is used
+                    to guess the MIME type
+                batch_parse_response: Parsed batch with markdown content 
+                current_output: Contains the extracted data so far and notes
+                **kwargs: Additional arguments passed to LLM
+
+            Returns:
+                Structured output wrapper for the single batch
+            """
+            # If it is the first call, we need to create an empty current_output
+            current_output = current_output if current_output else self.response_type()
+
+            # Format the prompt with the markdown content
+            formatted_prompt = self.format_batch_prompt(batch_parse_response, current_output)
+
+            # Use the LLM to generate structured output
+            return await self.llm.generate(
+                model=self.model,
+                prompt=formatted_prompt,
+                response_type=self.response_type,
+                **kwargs
+            )
 
     def _should_process_in_batches(self, filename: str, parse_response: ParseResponse) -> bool:
         """
@@ -550,27 +639,6 @@ Pages:
         """
         return self.prompt.format(parse_response_markdown=parse_response.markdown)
 
-    def format_batch_prompt(
-        self,
-        batch_parse_response: ParseResponse,
-        current_output: _StructuredOutputWrapper,
-    ) -> str:
-        """
-        Format the batch prompt template with the current batch of pages and extracted data so far.
-
-        Args:
-            batch_parse_response: The current batch of pages as ParseResponse
-            current_output: Extracted data so far with notes
-
-        Returns:
-            Formatted prompt string with markdown content inserted
-        """
-        return self.batch_prompt.format(
-            extracted_data=str(current_output.extracted_data.model_dump(mode="json")) if current_output.extracted_data else "None",
-            notes=current_output.notes if current_output.notes else "",
-            batch_parse_response_markdown=batch_parse_response.markdown
-        )
-
     async def _extract(
         self,
         filename: str,
@@ -597,38 +665,6 @@ Pages:
             model=self.model,
             prompt=formatted_prompt,
             response_type=self.response_type,
-            **kwargs
-        )
-
-    @cache_result(key_params=['batch_filename'])
-    async def _extract_single_batch(
-        self,
-        batch_filename: str,
-        batch_parse_response: ParseResponse,
-        current_output: _StructuredOutputWrapper,
-        **kwargs
-    ) -> T:
-        """
-        Cached wrapper for extracting from a single batch of pages.
-
-        Args:
-            batch_filename: Name of the file being processed. The extension is used
-                to guess the MIME type
-            batch_parse_response: Parsed batch with markdown content 
-            current_output: Contains the extracted data so far and notes
-            **kwargs: Additional arguments passed to LLM
-
-        Returns:
-            Structured output wrapper for the single batch
-        """
-        # Format the prompt with the markdown content
-        formatted_prompt = self.format_batch_prompt(batch_parse_response, current_output)
-
-        # Use the LLM to generate structured output
-        return await self.llm.generate(
-            model=self.model,
-            prompt=formatted_prompt,
-            response_type=self._response_type_wrapper,
             **kwargs
         )
 
@@ -672,8 +708,8 @@ Pages:
         # Prepare batches
         batches = self._create_batches(filename, parse_response)
 
-        # Initialize current output with empty extracted data and notes
-        current_output = self._response_type_wrapper()
+        # Extracted data and notes
+        current_output = None
 
         # Process the batches
         for batch_filename, batch_parse_response in batches:
