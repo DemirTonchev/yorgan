@@ -40,9 +40,9 @@ def get_parse_service(
         cache: Optional[BaseCache] = None,
         **kwargs: Any
 ) -> ParseService:
-
     # gets mapping of module: list of service classes, curretnly we only have one per module but that might change
     _parse_registry = _registy.parse.get_module_service_map()
+
     if option not in _parse_registry:
         raise ValueError(f"Unknown Parse service or service can't load: {option}")
 
@@ -57,8 +57,8 @@ def get_extract_service(
     cache: Optional[BaseCache] = None,
     **kwargs: Any
 ) -> StructuredOutputService[T]:
-
     _extract_registry = _registy.structured.get_module_service_map()
+
     if option not in _extract_registry:
         raise ValueError(f"Unknown Extract service or service can't load: {option}")
 
@@ -73,7 +73,6 @@ def get_parse_extract_service(
         cache: Optional[BaseCache] = None,
         **kwargs: Any
 ) -> ParseExtractService[T]:
-
     _parse_extract_registry = _registy.parse_extract.get_module_service_map()
 
     if option not in _parse_extract_registry:
