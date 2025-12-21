@@ -7,7 +7,7 @@ from landingai_ade.types import ParseResponse as LandingParseResponse
 
 from yorgan.cache import cache_result
 
-from .base import ParseExtractService, ParseService, StructuredOutputService
+from .base import ParseService  # , StructuredOutputService future implementation
 
 if TYPE_CHECKING:
     from aiocache.base import BaseCache

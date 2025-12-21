@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Optional, Type, TypeVar, cast, override
+from typing import Optional, Type, TypeVar, cast, override
 
 from google import genai
 from google.genai import types
@@ -10,8 +10,6 @@ from .base import (BaseLLM, BaseModel, LLMParseExtractPipelineService,
                    LLMParseService, LLMStructuredOutputService, ParseResponse)
 from .utils import get_mime_type
 
-if TYPE_CHECKING:
-    from .base import OptionalCacheType
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -108,7 +106,7 @@ class GeminiLLM(BaseLLM):
         structured_output = response.parsed
         if structured_output is None:
             raise ValueError(
-                f"Generation error: Gemini failed to generate output - no parsed response received"
+                "Generation error: Gemini failed to generate output - no parsed response received"
             )
 
         return cast(T, structured_output)

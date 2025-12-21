@@ -9,9 +9,6 @@ from .base import (BaseLLM, BaseModel, LLMParseExtractPipelineService,
                    LLMParseService, LLMStructuredOutputService, ParseResponse)
 from .utils import encode_bytes_for_transfer, get_mime_type
 
-if TYPE_CHECKING:
-    from .base import OptionalCacheType
-
 T = TypeVar('T', bound=BaseModel)
 
 

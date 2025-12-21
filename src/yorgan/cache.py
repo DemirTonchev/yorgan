@@ -10,9 +10,10 @@ import hashlib
 
 from aiocache import BaseCache, SimpleMemoryCache
 from aiocache.base import _ensure_key
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from yorgan.services.base import BaseService, T
+    from yorgan.services.base import BaseService
 
 
 @functools.lru_cache(maxsize=1)
@@ -117,7 +118,7 @@ class NullCache(BaseCache):
 
 
 P = ParamSpec("P")
-R = TypeVar("R")
+R = TypeVar("R", bound=BaseModel)
 Slf = TypeVar("Slf", bound="BaseService")
 
 

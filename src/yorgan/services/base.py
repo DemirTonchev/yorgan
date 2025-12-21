@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generic, Optional, Protocol, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, Protocol, Type, TypeVar, cast
 
 from pydantic import BaseModel, Field, create_model
 
@@ -20,6 +20,8 @@ class HasMarkdown(Protocol):
 
 
 T = TypeVar('T', bound=BaseModel)
+S = TypeVar('S', bound=BaseModel)
+R = TypeVar('R', bound=BaseModel)
 PARSE_T = TypeVar('PARSE_T', bound=ParseResponse)
 
 
@@ -98,17 +100,17 @@ class LLMServiceMixin:
     ) -> tuple[BaseLLM, str]:
         """
         Initialize LLM and model parameters with fallback to defaults.
-        
+
         If llm is not provided, attempts to instantiate LLM_TYPE.
         If model is not provided, uses llm.DEFAULT_MODEL.
-        
+
         Args:
             llm: BaseLLM instance for LLM interactions. If None, uses LLM_TYPE.
             model: Name/identifier of the LLM model to use. If None, uses llm.DEFAULT_MODEL.
-        
+
         Returns:
             Tuple of (llm, model) with defaults applied.
-        
+
         Raises:
             ValueError: If llm is None and LLM_TYPE is not set as a class attribute.
         """
@@ -130,8 +132,7 @@ class ParseService(BaseService[PARSE_T]):
     """
     Service that performs Parsing or Optical Character Recognition (OCR) of a document.
     """
-
-    @cache_result(key_params=['filename'])
+    @abstractmethod
     async def __call__(
         self,
         filename: str,
@@ -381,7 +382,7 @@ class StructuredOutputService(BaseService[T]):
     Service that extracts structured output using a language model.
     """
 
-    @cache_result(key_params=['filename'])
+    @abstractmethod
     async def __call__(
         self,
         filename: str,
@@ -401,7 +402,7 @@ class StructuredOutputService(BaseService[T]):
         Returns:
             Structured output as defined by response_type
         """
-        return await self.extract(filename, parse_response, **kwargs)
+        ...
 
 
 class LLMStructuredOutputService(StructuredOutputService[T], LLMServiceMixin):
@@ -494,38 +495,40 @@ Pages:
             cache=self.cache,
         )
 
-    class _ExtractSingleBatchService(BaseService[T]):
+    class _ExtractSingleBatchService(BaseService[S]):
         """
         A helper service to extract a single batch.
         We need this because the cache uses self.response_type for serialization.
         """
+
         def __init__(
             self,
             parent_type: Type[LLMStructuredOutputService[T]],
             response_type: Type[T],
             llm: BaseLLM,
             model: str,
-            batch_prompt: Optional[str] = None,
+            batch_prompt: str,
             cache: OptionalCacheType = None,
         ):
             # Create response_type_wrapper with optional fields and notes
             self.response_type = self._create_response_type_wrapper(response_type)
-            
+
             super().__init__(response_type=self.response_type, cache=cache)
 
             # This service should cache in the same namespace as its parent
+            # TODO remove this as meta init deals with this
             self.service_name = parent_type.__qualname__
 
             self.batch_prompt = batch_prompt
             self.llm = llm
             self.model = model
 
-        class _StructuredOutputWrapper(BaseModel, Generic[T]):
+        class _StructuredOutputWrapper(BaseModel, Generic[R]):
             """
             Wrapper model that includes the structured output and notes for iterative extraction.
             Used for batch processing.
             """
-            extracted_data: T | None = Field(
+            extracted_data: R | None = Field(
                 default=None,
                 description="The structured data extracted so far"
             )
@@ -773,10 +776,10 @@ Pages:
         return final_response
 
 
-R = TypeVar("R", bound=BaseModel, covariant=True)
+Q = TypeVar("Q", bound=BaseModel, covariant=True)
 
 
-class ParseExtractProtocol(Protocol[R]):
+class ParseExtractProtocol(Protocol[Q]):
     """
     Protocol defining the interface for ParseExtract services.
 
@@ -787,7 +790,7 @@ class ParseExtractProtocol(Protocol[R]):
         self,
         filename: str,
         content: bytes
-    ) -> R:
+    ) -> Q:
         """
         Cached entry point for parse and extract.
         Performs two step document parsing and extracting.
@@ -907,10 +910,10 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
     ) -> tuple[BaseLLM, str]:
         """
         Initialize parse_service and structured_output service with fallback to defaults.
-        
+
         If parse_service is not provided, attempts to instantiate LLM_PARSE_SERVICE_TYPE.
         If structured_output_service is not provided, attempts to instantiate LLM_STRUCTURED_OUTPUT_SERVICE_TYPE.
-        
+
         Args:
             parse_service: Service instance for the parse step.
                 If None, uses LLM_PARSE_SERVICE_TYPE
@@ -919,7 +922,7 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
 
         Returns:
             Tuple of (parse_service, structured_output_service) with defaults applied.
-        
+
         Raises:
             ValueError: If parse_service is None and LLM_PARSE_SERVICE_TYPE is not set as a class attribute.
             ValueError: If structured_output_service is None and LLM_STRUCTURED_OUTPUT_SERVICE_TYPE is not set as a class attribute.
@@ -941,7 +944,7 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
                 )
 
         return parse_service, structured_output_service
-    
+
     async def __call__(
         self,
         filename: str,
