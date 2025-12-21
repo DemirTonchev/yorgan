@@ -405,6 +405,22 @@ class StructuredOutputService(BaseService[T]):
         ...
 
 
+class _StructuredOutputWrapper(BaseModel, Generic[R]):
+    """
+    Wrapper model that includes the structured output and notes for iterative extraction.
+    Used for batch processing.
+    In principle can be used for wrapping any BaseModel
+    """
+    extracted_data: R | None = Field(
+        default=None,
+        description="The structured data extracted so far"
+    )
+    notes: str = Field(
+        default="",
+        description="Notes about information that may be useful for extraction in subsequent pages"
+    )
+
+
 class LLMStructuredOutputService(StructuredOutputService[T], LLMServiceMixin):
     """
     Structured output service that uses an LLM with a prompt template.
@@ -488,14 +504,14 @@ Pages:
         # Create a helper service for processing a single batch
         self._extract_single_batch = self._ExtractSingleBatchService(
             parent_type=type(self),
-            response_type=self.response_type,
+            original_response_type=self.response_type,
             llm=self.llm,
             model=self.model,
             batch_prompt=self.batch_prompt,
             cache=self.cache,
         )
 
-    class _ExtractSingleBatchService(BaseService[S]):
+    class _ExtractSingleBatchService(BaseService[_StructuredOutputWrapper[S]], Generic[S]):
         """
         A helper service to extract a single batch.
         We need this because the cache uses self.response_type for serialization.
@@ -504,16 +520,16 @@ Pages:
         def __init__(
             self,
             parent_type: Type[LLMStructuredOutputService[T]],
-            response_type: Type[T],
+            original_response_type: Type[T],
             llm: BaseLLM,
             model: str,
             batch_prompt: str,
             cache: OptionalCacheType = None,
         ):
             # Create response_type_wrapper with optional fields and notes
-            self.response_type = self._create_response_type_wrapper(response_type)
+            wrapper_type = self._create_response_type_wrapper(original_response_type)
 
-            super().__init__(response_type=self.response_type, cache=cache)
+            super().__init__(response_type=cast(type[_StructuredOutputWrapper[S]], wrapper_type), cache=cache)
 
             # This service should cache in the same namespace as its parent
             # TODO remove this as meta init deals with this
@@ -522,20 +538,6 @@ Pages:
             self.batch_prompt = batch_prompt
             self.llm = llm
             self.model = model
-
-        class _StructuredOutputWrapper(BaseModel, Generic[R]):
-            """
-            Wrapper model that includes the structured output and notes for iterative extraction.
-            Used for batch processing.
-            """
-            extracted_data: R | None = Field(
-                default=None,
-                description="The structured data extracted so far"
-            )
-            notes: str = Field(
-                default="",
-                description="Notes about information that may be useful for extraction in subsequent pages"
-            )
 
         def _create_response_type_wrapper(self, response_type: Type[T]) -> Type[_StructuredOutputWrapper]:
             """
@@ -560,7 +562,7 @@ Pages:
                 **optional_fields
             )
 
-            return self._StructuredOutputWrapper[OptionalResponseType]
+            return _StructuredOutputWrapper[OptionalResponseType]
 
         def format_batch_prompt(
             self,
@@ -590,7 +592,7 @@ Pages:
             batch_parse_response: ParseResponse,
             current_output: Optional[_StructuredOutputWrapper] = None,
             **kwargs
-        ) -> T:
+        ) -> _StructuredOutputWrapper[S]:
             """
             Cached wrapper for extracting from a single batch of pages.
 
@@ -605,7 +607,8 @@ Pages:
                 Structured output wrapper for the single batch
             """
             # If it is the first call, we need to create an empty current_output
-            current_output = current_output if current_output else self.response_type()
+            if not current_output:
+                current_output = self.response_type()
 
             # Format the prompt with the markdown content
             formatted_prompt = self.format_batch_prompt(batch_parse_response, current_output)
@@ -764,15 +767,14 @@ Pages:
             print(f"Extracting {batch_filename} ...")
 
             # Extract this single batch
-            current_output = await self._extract_single_batch(
+            current_output: _StructuredOutputWrapper[T] = await self._extract_single_batch(
                 batch_filename=batch_filename,
                 batch_parse_response=batch_parse_response,
                 current_output=current_output,
                 **kwargs
             )
 
-        final_extracted_data_dict = current_output.extracted_data.model_dump()
-        final_response = self.response_type(**final_extracted_data_dict)
+        final_response = self.response_type.model_validate(current_output.extracted_data, from_attributes=True)
         return final_response
 
 
