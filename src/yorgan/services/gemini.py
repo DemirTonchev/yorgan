@@ -1,190 +1,125 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Type, TypeVar, override, cast
+
 from functools import lru_cache
+from typing import Optional, Type, TypeVar, cast, override
+
 from google import genai
 from google.genai import types
-from .base import (
-    LLMParseService,
-    ParseResponse,
-    LLMStructuredOutputService,
-    ParseExtractService,
-    BaseModel
-)
+
+from .base import (BaseLLM, BaseModel, LLMParseExtractPipelineService,
+                   LLMParseService, LLMStructuredOutputService, ParseResponse)
 from .utils import get_mime_type
 
+
 T = TypeVar('T', bound=BaseModel)
-# ie has markdown attribute
-ParseResponseT = TypeVar("ParseResponseT", bound=ParseResponse)
-
-if TYPE_CHECKING:
-    from .base import OptionalCacheType
-
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
 @lru_cache(maxsize=1)
 def get_default_client():
+    """Get or create a singleton Gemini client."""
     return genai.Client()
 
 
-class GeminiParseService(LLMParseService[ParseResponse]):
+class GeminiLLM(BaseLLM):
     """
-    A Parse Service implementation using Gemini.
+    LLM implementation for Google Gemini models.
+
+    Handles structured output generation from prompts and optional document content.
     """
+    DEFAULT_MODEL = "gemini-2.5-flash"
 
     def __init__(
         self,
         client: Optional[genai.Client] = None,
-        model: str = DEFAULT_GEMINI_MODEL,
-        prompt: Optional[str] = None,
-        cache: OptionalCacheType = None
     ):
-        super().__init__(
-            response_type=ParseResponse,
-            model=model,
-            prompt=prompt,
-            cache=cache
-        )
+        """
+        Args:
+            client: Optional Gemini client instance. If not provided, uses a default singleton client.
+        """
         self.client = client if client is not None else get_default_client()
         self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
 
     @override
-    async def parse(
-            self,
-            filename: str,
-            content: bytes,
-            **kwargs
-    ) -> ParseResponse:
-        """Processes a document using Gemini as OCR engine."""
+    async def generate(
+        self,
+        model: str,
+        prompt: str,
+        response_type: Type[T],
+        filename: Optional[str] = None,
+        content: Optional[bytes] = None,
+        **kwargs
+    ) -> T:
+        """
+        Generate structured output from content using Gemini.
 
-        # Determine the MIME type based on the file extension
-        mime_type = get_mime_type(filename)
+        Args:
+            model: Name/identifier of the Gemini model to use.
+            prompt: The prompt to send to the model.
+            response_type: The Pydantic model class for the response.
+            filename: Name of the file being processed. The extension is used
+                to guess the MIME type.
+            content: Document content as bytes, or None if only using the prompt.
+            **kwargs: Additional arguments for the Gemini API.
 
-        if (extention := mime_type.split("/")[-1]) not in self._supported_file_types:
-            raise ValueError(f"Gemini: unsupported file type: {mime_type}")
+        Returns:
+            Instance of response_type with the model's generated output.
 
-        response = await self.client.aio.models.generate_content(
-            model=self.model,
-            contents=[
+        Raises:
+            ValueError: If the file type is unsupported or if generation fails.
+        """
+        # Build the contents list
+        contents = []
+
+        # If content is provided, add it as a Part
+        if content is not None and filename is not None:
+            mime_type = get_mime_type(filename)
+            extension = mime_type.split("/")[-1]
+
+            if extension not in self._supported_file_types:
+                raise ValueError(f"Gemini: unsupported file type: {mime_type}")
+
+            contents.append(
                 types.Part.from_bytes(
                     data=content,
                     mime_type=mime_type,
-                ),
-                self.prompt,
-            ],
+                )
+            )
+
+        # Add the prompt
+        contents.append(prompt)
+
+        # Make the API call
+        response = await self.client.aio.models.generate_content(
+            model=model,
+            contents=contents,
             config={
                 "response_mime_type": "application/json",
-                "response_schema": self.response_type,
+                "response_schema": response_type,
             },
+            **kwargs
         )
-        # for bookkeeping purposes at some point like
-        # metadata - token counts etc.. whatever the api returns and we might want to log
+
+        # Store raw response for bookkeeping (token counts, metadata, etc.)
         self._last_raw_response = response
-        parsed_document = response.parsed
-        if parsed_document is None:
-            raise ValueError(f"Extraction error: {self.service_name} failed to parse document - no output received")
-        return cast(ParseResponse, parsed_document)
+
+        # Parse and validate the response
+        structured_output = response.parsed
+        if structured_output is None:
+            raise ValueError(
+                "Generation error: Gemini failed to generate output - no parsed response received"
+            )
+
+        return cast(T, structured_output)
+
+
+class GeminiParseService(LLMParseService[ParseResponse]):
+    LLM_TYPE = GeminiLLM
 
 
 class GeminiStructuredOutputService(LLMStructuredOutputService[T]):
-    """
-    A structured output Service implementation using Gemini.
-    """
-
-    def __init__(
-        self,
-        response_type: Type[T],
-        client: Optional[genai.Client] = None,
-        model: str = DEFAULT_GEMINI_MODEL,
-        prompt: Optional[str] = None,
-        cache: OptionalCacheType = None
-    ):
-        super().__init__(response_type=response_type, cache=cache, model=model, prompt=prompt)
-        self.client = client if client is not None else get_default_client()
-
-    @override
-    async def extract(
-        self,
-        filename: str,
-        parse_response: ParseResponse,
-    ) -> T:
-        """
-        Generates a structured Pydantic object from a parsed document.
-        """
-        prompt = self.format_prompt(parse_response=parse_response)
-
-        # client.aio uses async stuff
-        response = await self.client.aio.models.generate_content(
-            model=self.model,
-            contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": self.response_type,
-            },
-        )
-        # for bookkeeping purposes at some point like
-        # metadata - token counts etc.. whatever the api returns and we might want to log
-        self._last_raw_response = response
-        structured_output = response.parsed
-        if structured_output is None:
-            raise ValueError(f"Extraction error: {self.service_name} failed to parse document - no output received")
-        return cast(T, structured_output)
+    LLM_TYPE = GeminiLLM
 
 
-class GeminiParseExtractService(ParseExtractService[T]):
-    """
-    An end-to-end document parsing Service using Gemini.
-    """
-
-    prompt: str = """\
-You are an accountant that extracts information from documents. Please look at this document and extract the needed information.
-"""
-
-    def __init__(
-        self,
-        response_type: Type[T],
-        client: Optional[genai.Client] = None,
-        model: str = DEFAULT_GEMINI_MODEL,
-        cache: OptionalCacheType = None
-    ):
-        super().__init__(response_type=response_type, cache=cache)
-        self.client = client if client is not None else get_default_client()
-        self.model = model
-        self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
-
-    @override
-    async def parse_extract(
-        self,
-        filename: str,
-        content: bytes
-    ) -> T:
-        """
-        Performs end-to-end document parsing and structuring using Gemini's native functionality.
-        """
-        mime_type = get_mime_type(filename)
-
-        if (extention := mime_type.split("/")[-1]) not in self._supported_file_types:
-            raise ValueError(f"Gemini: unsupported file type: {mime_type}")
-
-        response = await self.client.aio.models.generate_content(
-            model=self.model,
-            contents=[
-                types.Part.from_bytes(
-                    data=content,
-                    mime_type=mime_type,
-                ),
-                self.prompt,
-            ],
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": self.response_type,
-            },
-        )
-        # for bookkeeping purposes at some point like
-        # metadata - token counts etc.. whatever the api returns and we might want to log
-        self._last_raw_response = response
-
-        structured_output = response.parsed
-        if structured_output is None:
-            raise ValueError(f"Extraction error: {self.service_name} failed to parse document - no output received")
-        return cast(T, structured_output)
+class GeminiParseExtractPipelineService(LLMParseExtractPipelineService[T]):
+    LLM_PARSE_SERVICE_TYPE = GeminiParseService
+    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE = GeminiStructuredOutputService

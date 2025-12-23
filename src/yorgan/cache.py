@@ -10,9 +10,10 @@ import hashlib
 
 from aiocache import BaseCache, SimpleMemoryCache
 from aiocache.base import _ensure_key
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from yorgan.services.base import BaseService, T
+    from yorgan.services.base import BaseService
 
 
 @functools.lru_cache(maxsize=1)
@@ -117,7 +118,7 @@ class NullCache(BaseCache):
 
 
 P = ParamSpec("P")
-R = TypeVar("R")
+R = TypeVar("R", bound=BaseModel)
 Slf = TypeVar("Slf", bound="BaseService")
 
 
@@ -151,12 +152,12 @@ def cache_result(key_params: list[str]) -> Callable:
             if cached_json:
                 value = self.response_type.model_validate_json(cached_json)
                 if is_dev_env():
-                    print(f"------ cache hit with key {cache_key}")
+                    print(f"------ cache hit with key {cache_key}, ns {ns}")
             else:
                 value = await func(self, *args, **kwargs)
                 cached_json = value.model_dump_json(indent=2)
                 if is_dev_env() and not isinstance(self.cache, NullCache):
-                    print(f"------ storing value for key {cache_key}")
+                    print(f"------ storing value for key {cache_key}, ns {ns}")
 
                 await self.cache.set(key=cache_key, value=cached_json, namespace=ns)
 

@@ -47,7 +47,7 @@ from app.service_registry import (
 
 # load cache and global app state, in normal app cache would be redis or at least something like google adk memory cache.
 # needs to be cli param
-CACHE = SimpleMemoryCacheWithPersistence(persist_dir=Path(__file__).parent / './cache/parsed')
+CACHE = SimpleMemoryCacheWithPersistence(persist_dir=Path(__file__).parent / './cache')
 # CACHE = RedisCache(serializer=PickleSerializer())
 
 
