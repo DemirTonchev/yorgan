@@ -1,5 +1,7 @@
 import base64
 import mimetypes
+from io import BytesIO
+import httpx
 
 import pymupdf
 
@@ -99,3 +101,30 @@ def split_pdf(
 
     doc.close()
     return batches
+
+
+async def download_blob(presigned_url: str) -> BytesIO:
+    """
+    Downloads a blob from a provided presigned URL and returns it as a byte stream.
+
+    This function uses a streaming GET request to efficiently handle data transfer,
+    reading the response in chunks and writing them into a memory buffer.
+
+    Args:
+        presigned_url: A temporary, authenticated URL (e.g., from AWS S3,
+            GCS, or Azure) that provides read access to a specific blob/object.
+
+    Returns:
+        BytesIO: An in-memory binary stream containing the downloaded content.
+
+    Raises:
+        httpx.HTTPStatusError: If the request fails (e.g., 403 Forbidden, 404 Not Found).
+        httpx.RequestError: If a network-related error occurs during the download.
+    """
+    async with httpx.AsyncClient() as client:
+        async with client.stream("GET", presigned_url) as response:
+            response.raise_for_status()
+            buffer = BytesIO()
+            async for chunk in response.aiter_bytes():
+                buffer.write(chunk)
+            return buffer
