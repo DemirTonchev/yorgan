@@ -11,21 +11,107 @@ class SchemaDict(TypedDict, total=False):
     type: Literal["object"]
 
 
-class Metadata(BaseModel):
+class ParseMetadata(BaseModel):
+    credit_usage: Optional[float] = None
+
+    duration_ms: Optional[int] = None
+
     filename: Optional[str] = None
-    duration_ms: Optional[float] = None
+
+    job_id: Optional[str] = None
+
+    org_id: Optional[str] = None
+
+    page_count: Optional[int] = None
+
+    version: Optional[str] = None
+
+    failed_pages: Optional[list[int]] = None
 
     model_config = ConfigDict(extra="allow")
+
+
+class ParseGroundingBox(BaseModel):
+    bottom: float
+
+    left: float
+
+    right: float
+
+    top: float
+
+
+class ChunkGrounding(BaseModel):
+    box: ParseGroundingBox
+
+    page: int
+
+
+class Chunk(BaseModel):
+    id: str
+
+    grounding: ChunkGrounding
+
+    markdown: str
+
+    type: str
+
+
+# class Split(BaseModel):
+#     chunks: list[str]
+
+#     class_: str = Field(alias="class")
+
+#     identifier: str
+
+#     markdown: str
+
+#     pages: list[int]
+
+#     model_config = ConfigDict(populate_by_name=True)
+
+
+class Grounding(BaseModel):
+    box: ParseGroundingBox
+
+    page: int
+
+    type: Literal[
+        "chunkLogo",
+        "chunkCard",
+        "chunkAttestation",
+        "chunkScanCode",
+        "chunkForm",
+        "chunkTable",
+        "chunkFigure",
+        "chunkText",
+        "chunkMarginalia",
+        "chunkTitle",
+        "chunkPageHeader",
+        "chunkPageFooter",
+        "chunkPageNumber",
+        "chunkKeyValue",
+        "table",
+        "tableCell",
+    ]
 
 
 class ParseResponse(BaseModel):
     PAGE_BREAK: ClassVar[str] = "<!-- PAGE BREAK -->"
 
+    chunks: Optional[list[Chunk]] = None
+
     markdown: str
 
+    metadata: Optional[ParseMetadata] = None
+
+    # we dont use the splits right now...
+    # splits: List[Split]
+
+    grounding: Optional[dict[str, Grounding]] = None
+
+
 # TODO: this information will be available in chunks
-
-
 def add_explicit_page_numbering(parse_response: ParseResponse):
     """
     Adds explicit page numbering in the markdown of the parse response.
@@ -47,10 +133,11 @@ def add_explicit_page_numbering(parse_response: ParseResponse):
 
 
 class ParseResponseMetaData(ParseResponse):
-    metadata: Metadata = Field(default=Metadata())
+    metadata: ParseMetadata = Field(default=ParseMetadata())
 
 
-class APIParseResponse(ParseResponseMetaData):
+# class APIParseResponse(ParseResponseMetaData):
+class APIParseResponse(ParseResponse):
 
     model_config = ConfigDict(extra="allow")
 
