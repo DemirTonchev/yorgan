@@ -278,7 +278,7 @@ Insert the following page break between consecutive pages:
         filename: str,
         content: bytes,
         **kwargs
-    ) -> PARSE_T:
+    ) -> Markdown:
         """
         Parse a document using the LLM.
 
@@ -294,7 +294,7 @@ Insert the following page break between consecutive pages:
         return await self.llm.generate(
             model=self.model,
             prompt=self.prompt,
-            response_type=self.response_type,
+            response_type=Markdown,
             filename=filename,
             content=content,
             **kwargs
