@@ -44,7 +44,14 @@ class AgenticDocParseService(ParseService[ParseResponse]):  # type: ignore
         self._client = AsyncLandingAIADE(environment=environment, **kwargs)
 
     async def _create_job(self, content: bytes, **kwargs) -> ParseJobCreateResponse:
-        return await self._client.parse_jobs.create(document=content, model=self.model, **kwargs)
+        document_url = kwargs.pop("document_url", None)
+        output_save_url = kwargs.pop("output_save_url", None)
+        return await self._client.parse_jobs.create(
+            document=content,
+            model=self.model,
+            document_url=document_url,
+            output_save_url=output_save_url,
+        )
 
     async def _poll_job(self, job_id: str, poll_interval=5, **kwargs) -> ParseJobGetResponse:
         """Poll until job completes or fails."""
@@ -96,7 +103,7 @@ class AgenticDocParseService(ParseService[ParseResponse]):  # type: ignore
             )
 
     @override
-    @cache_result(key_params=['filename'])
+    @cache_result(key_params=["filename"])
     async def __call__(
         self,
         filename: str,
@@ -110,4 +117,44 @@ class AgenticDocParseService(ParseService[ParseResponse]):  # type: ignore
             response = ParseResponse.model_validate(landing_response, from_attributes=True)
         else:
             response = await self._run_job(content=content)
+        return response
+
+    @cache_result(key_params=["filename"])
+    async def run_job(
+        self,
+        filename: str,
+        content: Optional[bytes] = None,
+        job_id: Optional[str] = None,
+        poll_interval: int = 5,
+    ) -> ParseResponse:
+        """Run or resume an asynchronous document parsing job.
+
+        Provides direct access to the job-based parsing workflow. Use this method when you
+        need explicit control over job execution or want to resume a previously
+        started job.
+
+        While the document is processed asynchronously on the server, this method
+        handles polling internally and returns the final result directly - the caller
+        simply awaits completion without manual status checking.
+
+        Args:
+            filename: Name of the document file, used as the cache key.
+            content: Raw bytes of the PDF document to parse. Required when
+                starting a new job, ignored when resuming an existing job.
+            job_id: Identifier of an existing job to resume. If provided,
+                the method polls for completion instead of submitting new work.
+            poll_interval: Seconds to wait between status checks when polling
+                for job completion. Defaults to 5.
+
+        Returns:
+            Parsed document response containing extracted text and metadata.
+
+        Raises:
+            ValueError: If neither `content` nor `job_id` is provided.
+
+        Note:
+            Either `content` or `job_id` must be provided. Results are cached
+            based on filename.
+        """
+        response = await self._run_job(content=content, job_id=job_id, poll_interval=poll_interval)
         return response
