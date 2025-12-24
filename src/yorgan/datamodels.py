@@ -27,6 +27,11 @@ class ParseMetadata(BaseModel):
     version: Optional[str] = None
 
     failed_pages: Optional[list[int]] = None
+    # --- above is same as langing parse response
+
+    input_token_count: Optional[int] = None
+
+    output_token_count: Optional[int] = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -96,12 +101,15 @@ class Grounding(BaseModel):
     ]
 
 
-class ParseResponse(BaseModel):
+class Markdown(BaseModel):
     PAGE_BREAK: ClassVar[str] = "<!-- PAGE BREAK -->"
 
-    chunks: Optional[list[Chunk]] = None
-
     markdown: str
+
+
+class ParseResponse(Markdown):
+
+    chunks: Optional[list[Chunk]] = None
 
     metadata: Optional[ParseMetadata] = None
 
@@ -132,11 +140,6 @@ def add_explicit_page_numbering(parse_response: ParseResponse):
     parse_response.markdown = edited_markdown
 
 
-class ParseResponseMetaData(ParseResponse):
-    metadata: ParseMetadata = Field(default=ParseMetadata())
-
-
-# class APIParseResponse(ParseResponseMetaData):
 class APIParseResponse(ParseResponse):
 
     model_config = ConfigDict(extra="allow")
