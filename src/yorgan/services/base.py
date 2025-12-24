@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, create_model
 
 from yorgan.cache import (BaseCache, NullCache,
                           SimpleMemoryCacheWithPersistence, cache_result)
-from yorgan.datamodels import ParseResponse, add_explicit_page_numbering
+from yorgan.datamodels import Markdown, ParseMetadata, ParseResponse, add_explicit_page_numbering
 from yorgan.services.utils import count_pdf_pages, get_mime_type, split_pdf
 
 if TYPE_CHECKING:
@@ -80,6 +80,10 @@ class BaseLLM(ABC):
         Returns:
             Structured output as defined by response_type
         """
+        ...
+
+    @abstractmethod
+    def get_metadata(self) -> ParseMetadata | None:
         ...
 
 
@@ -347,11 +351,13 @@ Insert the following page break between consecutive pages:
         # Check if this document should be processed in batches
         if not self._should_process_in_batches(filename, content):
             # Process the whole document
-            return await self._parse(
+            response = await self._parse(
                 filename=filename,
                 content=content,
                 **kwargs
             )
+            metadata = self.llm.get_metadata()
+            return self.response_type(**response.model_dump(), metadata=metadata)
 
         # Prepare batches
         batches = self._create_batches(filename, content)

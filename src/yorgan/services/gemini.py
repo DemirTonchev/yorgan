@@ -5,9 +5,12 @@ from typing import Optional, Type, TypeVar, cast, override
 
 from google import genai
 from google.genai import types
-
-from .base import (BaseLLM, BaseModel, LLMParseExtractPipelineService,
-                   LLMParseService, LLMStructuredOutputService, ParseResponse)
+from pydantic import BaseModel
+from .base import (
+    BaseLLM, LLMParseExtractPipelineService,
+    LLMParseService, LLMStructuredOutputService
+)
+from yorgan.datamodels import Markdown, ParseResponse, ParseMetadata
 from .utils import get_mime_type
 
 
@@ -38,6 +41,7 @@ class GeminiLLM(BaseLLM):
         """
         self.client = client if client is not None else get_default_client()
         self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
+        self._last_raw_response: Optional[types.GenerateContentResponse] = None
 
     @override
     async def generate(
@@ -110,6 +114,15 @@ class GeminiLLM(BaseLLM):
             )
 
         return cast(T, structured_output)
+
+    def get_metadata(self) -> ParseMetadata | None:
+        if self._last_raw_response and self._last_raw_response.usage_metadata:
+            usage_metadata = self._last_raw_response.usage_metadata
+            metadata = ParseMetadata(
+                input_token_count=usage_metadata.prompt_token_count,
+                output_token_count=cast(int, usage_metadata.total_token_count) - cast(int, usage_metadata.prompt_token_count),
+            )
+            return metadata
 
 
 class GeminiParseService(LLMParseService[ParseResponse]):
