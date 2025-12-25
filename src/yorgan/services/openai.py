@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Optional, Type, TypeVar, override
+from typing import Optional, Type, TypeVar, cast, override
 
 import openai
+from pydantic import BaseModel
 
-from .base import (BaseLLM, BaseModel, LLMParseExtractPipelineService,
-                   LLMParseService, LLMStructuredOutputService, ParseResponse)
+from yorgan.datamodels import ParseResponse, ResponseMetadata
+
+from .base import (BaseLLM, LLMParseExtractPipelineService, LLMParseService,
+                   LLMStructuredOutputService)
 from .utils import encode_bytes_for_transfer, get_mime_type
 
 T = TypeVar('T', bound=BaseModel)
@@ -48,7 +51,7 @@ class OpenAILLM(BaseLLM):
         filename: Optional[str] = None,
         content: Optional[bytes] = None,
         **kwargs
-    ) -> T:
+    ) -> tuple[T, ResponseMetadata]:
         """
         Generate structured output from content using OpenAI.
 
@@ -107,24 +110,32 @@ class OpenAILLM(BaseLLM):
             })
 
         # Make the API call
-        response = await self.client.responses.parse(
+        llm_response = await self.client.responses.parse(
             model=model,
             input=input_messages,
             text_format=response_type,
             **kwargs
         )
 
-        # Store raw response for bookkeeping (token counts, metadata, etc.)
-        self._last_raw_response = response
-
         # Parse and validate the response
-        structured_output = response.output_parsed
+        structured_output = llm_response.output_parsed
         if structured_output is None:
             raise ValueError(
-                f"Generation error: OpenAI failed to generate output - no parsed response received"
+                "Generation error: OpenAI failed to generate output - no parsed response received"
             )
+        response = cast(T, structured_output)
 
-        return structured_output
+        # Extract usage metadata from the response
+        usage = getattr(llm_response, 'usage', None)
+        if usage:
+            metadata = ResponseMetadata(
+                input_token_count=getattr(usage, 'input_tokens', None),
+                output_token_count=getattr(usage, 'output_tokens', None),
+            )
+        else:
+            metadata = ResponseMetadata()
+
+        return response, metadata
 
 
 class OpenAIParseService(LLMParseService[ParseResponse]):

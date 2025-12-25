@@ -8,27 +8,22 @@ from json import (
 import logging
 import time
 from contextlib import asynccontextmanager
-from functools import lru_cache
 from pprint import pprint  # yeas I am lazy to do proper logging
 from typing import Annotated, Any
 from pathlib import Path
 
-import pydantic
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from google.adk.cli.fast_api import get_fast_api_app as adk_get_fast_api_app
 from pydantic import BaseModel, ConfigDict, model_validator
 from aiocache import RedisCache
-from aiocache.serializers import PickleSerializer
+# from aiocache.serializers import PickleSerializer
 
 from yorgan.cache import SimpleMemoryCacheWithPersistence
-from yorgan.datamodels import ParseResponse, ParseResponseMetaData
+from yorgan.datamodels import ParseResponse
 from yorgan.datamodels import APIParseResponse, APIExtractResponse
-from yorgan.services.gemini import (
-    GeminiStructuredOutputService,
-)
-from yorgan.utils import SchemaDict, json_schema_to_pydantic_model, SchemaConversionError
+from yorgan.utils import json_schema_to_pydantic_model, SchemaConversionError
 from app.app_settings import settings
 from app.app_utils import generate_hashed_filename
 from app.service_registry import (
@@ -125,7 +120,7 @@ async def parse(
 
     content = await file.read()
     filename = file.filename
-    
+
     parse_service = get_parse_service(option, cache=CACHE, **service_kwargs)
 
     filename_key = generate_hashed_filename(filename, content)
