@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, create_model
 
 from yorgan.cache import (BaseCache, NullCache,
                           SimpleMemoryCacheWithPersistence, cache_result)
-from yorgan.datamodels import Markdown, ParseMetadata, ParseResponse, add_explicit_page_numbering
+from yorgan.datamodels import Markdown, ResponseMetadata, ParseResponse, add_explicit_page_numbering
 from yorgan.services.utils import count_pdf_pages, get_mime_type, split_pdf
 
 if TYPE_CHECKING:
@@ -64,7 +64,7 @@ class BaseLLM(ABC):
         filename: Optional[str] = None,
         content: Optional[bytes] = None,
         **kwargs
-    ) -> T:
+    ) -> tuple[T, ResponseMetadata]:
         """
         Generate structured output from content using an LLM.
 
@@ -78,12 +78,8 @@ class BaseLLM(ABC):
             **kwargs: Additional arguments for the LLM
 
         Returns:
-            Structured output as defined by response_type
+            Structured output as defined by response_type and metadata
         """
-        ...
-
-    @abstractmethod
-    def get_metadata(self) -> ParseMetadata:
         ...
 
 
@@ -291,7 +287,7 @@ Insert the following page break between consecutive pages:
         Returns:
             Parsed response containing markdown representation
         """
-        markdown = await self.llm.generate(
+        markdown, metadata = await self.llm.generate(
             model=self.model,
             prompt=self.prompt,
             response_type=Markdown,
@@ -299,7 +295,6 @@ Insert the following page break between consecutive pages:
             content=content,
             **kwargs
         )
-        metadata = self.llm.get_metadata()
         return self.response_type(**markdown.model_dump(), metadata=metadata)
 
     @cache_result(key_params=['batch_filename'])
@@ -321,7 +316,7 @@ Insert the following page break between consecutive pages:
         Returns:
             Parsed response for the single batch
         """
-        markdown = await self.llm.generate(
+        markdown, metadata = await self.llm.generate(
             model=self.model,
             prompt=self.batch_prompt,
             response_type=Markdown,
@@ -329,12 +324,11 @@ Insert the following page break between consecutive pages:
             content=batch_content,
             **kwargs
         )
-        metadata = self.llm.get_metadata()
         return self.response_type(**markdown.model_dump(), metadata=metadata)
 
     def _combine_batch_responses(self, batch_responses: list[PARSE_T]) -> PARSE_T:
         combined_markdown = f"\n\n{ParseResponse.PAGE_BREAK}\n\n".join([batch_response.markdown for batch_response in batch_responses])
-        combined_metadata = ParseMetadata(
+        combined_metadata = ResponseMetadata(
             credit_usage=sum(b.metadata.credit_usage for b in batch_responses if b.metadata.credit_usage is not None) or None,
             duration_ms=sum(b.metadata.duration_ms for b in batch_responses if b.metadata.duration_ms is not None) or None,
             filename=batch_responses[0].metadata.filename if batch_responses else None,
@@ -640,12 +634,13 @@ Pages:
             formatted_prompt = self.format_batch_prompt(batch_parse_response, current_output)
 
             # Use the LLM to generate structured output
-            return await self.llm.generate(
+            response, metadata = await self.llm.generate(
                 model=self.model,
                 prompt=formatted_prompt,
                 response_type=self.response_type,
                 **kwargs
             )
+            return response
 
     def _should_process_in_batches(self, filename: str, parse_response: ParseResponse) -> bool:
         """
@@ -738,12 +733,13 @@ Pages:
         formatted_prompt = self.format_prompt(parse_response)
 
         # Use the LLM to generate structured output
-        return await self.llm.generate(
+        response, metadata = await self.llm.generate(
             model=self.model,
             prompt=formatted_prompt,
             response_type=self.response_type,
             **kwargs
         )
+        return response
 
     @cache_result(key_params=['filename'])
     async def __call__(
@@ -786,7 +782,7 @@ Pages:
         batches = self._create_batches(filename, parse_response)
 
         # Extracted data and notes
-        current_output = None
+        current_output = None  # type: ignore
 
         # Process the batches
         for batch_filename, batch_parse_response in batches:

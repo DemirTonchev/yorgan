@@ -11,7 +11,7 @@ class SchemaDict(TypedDict, total=False):
     type: Literal["object"]
 
 
-class ParseMetadata(BaseModel):
+class ResponseMetadata(BaseModel):
     credit_usage: Optional[float] = None
 
     duration_ms: Optional[int] = None
@@ -112,7 +112,7 @@ class ParseResponse(Markdown):
 
     chunks: Optional[list[Chunk]] = None
 
-    metadata: ParseMetadata = ParseMetadata()
+    metadata: ResponseMetadata = ResponseMetadata()
 
     # we dont use the splits right now...
     # splits: List[Split]

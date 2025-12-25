@@ -10,7 +10,7 @@ from .base import (
     BaseLLM, LLMParseExtractPipelineService,
     LLMParseService, LLMStructuredOutputService
 )
-from yorgan.datamodels import ParseResponse, ParseMetadata
+from yorgan.datamodels import ParseResponse, ResponseMetadata
 from .utils import get_mime_type
 
 
@@ -52,7 +52,7 @@ class GeminiLLM(BaseLLM):
         filename: Optional[str] = None,
         content: Optional[bytes] = None,
         **kwargs
-    ) -> T:
+    ) -> tuple[T, ResponseMetadata]:
         """
         Generate structured output from content using Gemini.
 
@@ -93,7 +93,7 @@ class GeminiLLM(BaseLLM):
         contents.append(prompt)
 
         # Make the API call
-        response = await self.client.aio.models.generate_content(
+        llm_response = await self.client.aio.models.generate_content(
             model=model,
             contents=contents,
             config={
@@ -103,28 +103,35 @@ class GeminiLLM(BaseLLM):
             **kwargs
         )
 
-        # Store raw response for bookkeeping (token counts, metadata, etc.)
-        self._last_raw_response = response
-
         # Parse and validate the response
-        structured_output = response.parsed
+        structured_output = llm_response.parsed
         if structured_output is None:
             raise ValueError(
                 "Generation error: Gemini failed to generate output - no parsed response received"
             )
+        response = cast(T, structured_output)
 
-        return cast(T, structured_output)
+        usage_metadata = llm_response.usage_metadata
+        if usage_metadata:
+            metadata = ResponseMetadata(
+                input_token_count=usage_metadata.prompt_token_count,
+                output_token_count=cast(int, usage_metadata.total_token_count) - cast(int, usage_metadata.prompt_token_count),
+            )
+        else:
+            metadata = ResponseMetadata()
 
-    def get_metadata(self) -> ParseMetadata:
+        return response, metadata
+
+    def get_metadata(self) -> ResponseMetadata:
         if self._last_raw_response and self._last_raw_response.usage_metadata:
             usage_metadata = self._last_raw_response.usage_metadata
-            metadata = ParseMetadata(
+            metadata = ResponseMetadata(
                 input_token_count=usage_metadata.prompt_token_count,
                 output_token_count=cast(int, usage_metadata.total_token_count) - cast(int, usage_metadata.prompt_token_count),
             )
             return metadata
         else:
-            return ParseMetadata()
+            return ResponseMetadata()
 
 
 class GeminiParseService(LLMParseService[ParseResponse]):
