@@ -41,7 +41,6 @@ class GeminiLLM(BaseLLM):
         """
         self.client = client if client is not None else get_default_client()
         self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
-        self._last_raw_response: Optional[types.GenerateContentResponse] = None
 
     @override
     async def generate(
@@ -121,17 +120,6 @@ class GeminiLLM(BaseLLM):
             metadata = ResponseMetadata()
 
         return response, metadata
-
-    def get_metadata(self) -> ResponseMetadata:
-        if self._last_raw_response and self._last_raw_response.usage_metadata:
-            usage_metadata = self._last_raw_response.usage_metadata
-            metadata = ResponseMetadata(
-                input_token_count=usage_metadata.prompt_token_count,
-                output_token_count=cast(int, usage_metadata.total_token_count) - cast(int, usage_metadata.prompt_token_count),
-            )
-            return metadata
-        else:
-            return ResponseMetadata()
 
 
 class GeminiParseService(LLMParseService[ParseResponse]):
