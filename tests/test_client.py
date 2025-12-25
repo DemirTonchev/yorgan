@@ -12,7 +12,7 @@ RESPONSES = {
     "/extract": {"extraction": {"title": "Yorgan"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiStructuredOutputService"}},
     "/parse-extract": {"extraction": {"title": "Yorgan"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiParseExtractService"}},
     "/schema/validate": {"success": True, "message": "Schema is valid"},
-    "/options": {"parse": ["gemini", "landingai", "openai"], "extract": ["gemini", "openai"], "parse-extract": ["gemini", "openai"]},
+    "/options": {"parse": ["gemini", "gpt", "landingai"], "extract": ["gemini", "gpt"], "parse-extract": ["gemini", "gpt"]},
     "/info": {"version": "1.0.0"},
 }
 

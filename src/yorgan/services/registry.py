@@ -39,13 +39,13 @@ class Registry(Generic[T]):
         Get a list of all module names for registered services.
 
         Returns:
-            list[str]: A list of loaded module names (e.g., ['gemini', 'landing', 'openai']) extracted from
+            list[str]: A list of loaded module names (e.g., ['gemini', 'gpt', 'landingai']) extracted from
                       the registered service classes. Module names are derived from the
                       last component of the service's __module__ attribute.
 
             Example:
                 >>> registry.list_modules()
-                ['gemini', 'landing', 'openai']
+                ['gemini', 'gpt', 'landingai']
         """
         return [v.module for v in self._registry.values()]
 

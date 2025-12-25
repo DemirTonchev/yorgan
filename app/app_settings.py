@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ParseServiceOptions = StrEnum("ParseServiceOptions", "landingai gemini openai")
+# ParseServiceOptions = StrEnum("ParseServiceOptions", "gemini gpt landingai")
 
 
 class Settings(BaseSettings):
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     )
     parse_llm: str = "gemini-2.5-flash"
     # parse_llms: dict[str, str] = "gemini-2.5-flash"
-    # open_parse_llm: Optional[str] = "gpt-4.1"
+    # gpt_parse_llm: Optional[str] = "gpt-4.1"
     # structured_output_llm: str = "gemini-2.5-flash"
 
     # parse_service_backend: str = "landingai"

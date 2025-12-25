@@ -36,7 +36,7 @@ class GeminiLLM(BaseLLM):
     ):
         """
         Args:
-            client: Optional Gemini client instance. If not provided, uses a default singleton client.
+            client: Optional Google client instance. If not provided, uses a default singleton client.
         """
         self.client = client if client is not None else get_default_client()
         self._supported_file_types = {"png", "jpeg", "jpg", "pdf"}
@@ -52,7 +52,7 @@ class GeminiLLM(BaseLLM):
         **kwargs
     ) -> tuple[T, ResponseMetadata]:
         """
-        Generate structured output from content using Gemini.
+        Generate structured output from content using Google Gemini models.
 
         Args:
             model: Name/identifier of the Gemini model to use.
@@ -61,7 +61,7 @@ class GeminiLLM(BaseLLM):
             filename: Name of the file being processed. The extension is used
                 to guess the MIME type.
             content: Document content as bytes, or None if only using the prompt.
-            **kwargs: Additional arguments for the Gemini API.
+            **kwargs: Additional arguments for the Google API.
 
         Returns:
             Instance of response_type with the model's generated output.

@@ -21,12 +21,12 @@ def get_default_client():
     return openai.AsyncOpenAI()
 
 
-class OpenAILLM(BaseLLM):
+class GPTLLM(BaseLLM):
     """
-    LLM implementation for OpenAI models.
+    LLM implementation for OpenAI GPT models.
 
     Handles structured output generation from prompts and optional document content
-    using OpenAI's responses.parse API.
+    using OpenAI responses.parse API.
     """
 
     DEFAULT_MODEL = "gpt-4.1"
@@ -53,10 +53,10 @@ class OpenAILLM(BaseLLM):
         **kwargs
     ) -> tuple[T, ResponseMetadata]:
         """
-        Generate structured output from content using OpenAI.
+        Generate structured output from content using OpenAI GPT models.
 
         Args:
-            model: Name/identifier of the OpenAI model to use.
+            model: Name/identifier of the OpenAI GPT model to use.
             prompt: The prompt to send to the model.
             response_type: The Pydantic model class for the response.
             filename: Name of the file being processed. The extension is used
@@ -81,7 +81,7 @@ class OpenAILLM(BaseLLM):
             extension = mime_type.split("/")[-1]
 
             if extension not in self._supported_file_types:
-                raise ValueError(f"OpenAI: unsupported file type: {mime_type}")
+                raise ValueError(f"GPT: unsupported file type: {mime_type}")
 
             base64_content = encode_bytes_for_transfer(content)
 
@@ -121,7 +121,7 @@ class OpenAILLM(BaseLLM):
         structured_output = llm_response.output_parsed
         if structured_output is None:
             raise ValueError(
-                "Generation error: OpenAI failed to generate output - no parsed response received"
+                "Generation error: GPT failed to generate output - no parsed response received"
             )
         response = cast(T, structured_output)
 
@@ -138,14 +138,14 @@ class OpenAILLM(BaseLLM):
         return response, metadata
 
 
-class OpenAIParseService(LLMParseService[ParseResponse]):
-    LLM_TYPE = OpenAILLM
+class GPTParseService(LLMParseService[ParseResponse]):
+    LLM_TYPE = GPTLLM
 
 
-class OpenAIStructuredOutputService(LLMStructuredOutputService[T]):
-    LLM_TYPE = OpenAILLM
+class GPTStructuredOutputService(LLMStructuredOutputService[T]):
+    LLM_TYPE = GPTLLM
 
 
-class OpenAIParseExtractPipelineService(LLMParseExtractPipelineService[T]):
-    LLM_PARSE_SERVICE_TYPE = OpenAIParseService
-    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE = OpenAIStructuredOutputService
+class GPTParseExtractPipelineService(LLMParseExtractPipelineService[T]):
+    LLM_PARSE_SERVICE_TYPE = GPTParseService
+    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE = GPTStructuredOutputService
