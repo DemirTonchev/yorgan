@@ -10,7 +10,7 @@ from .base import (
     BaseLLM, LLMParseExtractPipelineService,
     LLMParseService, LLMStructuredOutputService
 )
-from yorgan.datamodels import Markdown, ParseResponse, ParseMetadata
+from yorgan.datamodels import ParseResponse, ParseMetadata
 from .utils import get_mime_type
 
 
@@ -115,7 +115,7 @@ class GeminiLLM(BaseLLM):
 
         return cast(T, structured_output)
 
-    def get_metadata(self) -> ParseMetadata | None:
+    def get_metadata(self) -> ParseMetadata:
         if self._last_raw_response and self._last_raw_response.usage_metadata:
             usage_metadata = self._last_raw_response.usage_metadata
             metadata = ParseMetadata(
@@ -123,6 +123,8 @@ class GeminiLLM(BaseLLM):
                 output_token_count=cast(int, usage_metadata.total_token_count) - cast(int, usage_metadata.prompt_token_count),
             )
             return metadata
+        else:
+            return ParseMetadata()
 
 
 class GeminiParseService(LLMParseService[ParseResponse]):

@@ -83,7 +83,7 @@ class BaseLLM(ABC):
         ...
 
     @abstractmethod
-    def get_metadata(self) -> ParseMetadata | None:
+    def get_metadata(self) -> ParseMetadata:
         ...
 
 
@@ -278,7 +278,7 @@ Insert the following page break between consecutive pages:
         filename: str,
         content: bytes,
         **kwargs
-    ) -> Markdown:
+    ) -> PARSE_T:
         """
         Parse a document using the LLM.
 
@@ -291,7 +291,7 @@ Insert the following page break between consecutive pages:
         Returns:
             Parsed response containing markdown representation
         """
-        return await self.llm.generate(
+        markdown = await self.llm.generate(
             model=self.model,
             prompt=self.prompt,
             response_type=Markdown,
@@ -299,6 +299,8 @@ Insert the following page break between consecutive pages:
             content=content,
             **kwargs
         )
+        metadata = self.llm.get_metadata()
+        return self.response_type(**markdown.model_dump(), metadata=metadata)
 
     @cache_result(key_params=['batch_filename'])
     async def _parse_single_batch(
@@ -319,14 +321,38 @@ Insert the following page break between consecutive pages:
         Returns:
             Parsed response for the single batch
         """
-        return await self.llm.generate(
+        markdown = await self.llm.generate(
             model=self.model,
             prompt=self.batch_prompt,
-            response_type=self.response_type,
+            response_type=Markdown,
             filename=batch_filename,
             content=batch_content,
             **kwargs
         )
+        metadata = self.llm.get_metadata()
+        return self.response_type(**markdown.model_dump(), metadata=metadata)
+
+    def _combine_batch_responses(self, batch_responses: list[PARSE_T]) -> PARSE_T:
+        combined_markdown = f"\n\n{ParseResponse.PAGE_BREAK}\n\n".join([batch_response.markdown for batch_response in batch_responses])
+        combined_metadata = ParseMetadata(
+            credit_usage=sum(b.metadata.credit_usage for b in batch_responses if b.metadata.credit_usage is not None) or None,
+            duration_ms=sum(b.metadata.duration_ms for b in batch_responses if b.metadata.duration_ms is not None) or None,
+            filename=batch_responses[0].metadata.filename if batch_responses else None,
+            job_id=None,  # Multiple jobs, no single ID
+            org_id=batch_responses[0].metadata.org_id if batch_responses else None,
+            page_count=sum(b.metadata.page_count for b in batch_responses if b.metadata.page_count is not None) or None,
+            version=batch_responses[0].metadata.version if batch_responses else None,
+            failed_pages=[
+                page
+                for b in batch_responses
+                if b.metadata.failed_pages
+                for page in b.metadata.failed_pages
+            ] or None,
+            input_token_count=sum(b.metadata.input_token_count for b in batch_responses if b.metadata.input_token_count is not None) or None,
+            output_token_count=sum(b.metadata.output_token_count for b in batch_responses if b.metadata.output_token_count is not None) or None,
+        )
+        # Create the response object
+        return self.response_type(markdown=combined_markdown, metadata=combined_metadata)
 
     @cache_result(key_params=['filename'])
     async def __call__(
@@ -351,19 +377,17 @@ Insert the following page break between consecutive pages:
         # Check if this document should be processed in batches
         if not self._should_process_in_batches(filename, content):
             # Process the whole document
-            response = await self._parse(
+            return await self._parse(
                 filename=filename,
                 content=content,
                 **kwargs
             )
-            metadata = self.llm.get_metadata()
-            return self.response_type(**response.model_dump(), metadata=metadata)
 
         # Prepare batches
         batches = self._create_batches(filename, content)
 
         # Process the batches
-        batch_markdowns = []
+        batch_responses = []
         for batch_filename, batch_content in batches:
             print(f"Parsing {batch_filename} ...")
             # Parse this single batch
@@ -372,15 +396,11 @@ Insert the following page break between consecutive pages:
                 batch_content=batch_content,
                 **kwargs
             )
+            batch_responses.append(batch_response)
 
-            # Extract markdown from the response
-            batch_markdowns.append(batch_response.markdown)
-
-        # Combine all batches with page breaks
-        combined_markdown = f"\n\n{ParseResponse.PAGE_BREAK}\n\n".join(batch_markdowns)
-
-        # Create the response object
-        return self.response_type(markdown=combined_markdown)
+        # Combine all batches
+        combined_response = self._combine_batch_responses(batch_responses)
+        return combined_response
 
 
 class StructuredOutputService(BaseService[T]):
