@@ -122,9 +122,7 @@ async def download_blob(presigned_url: str) -> BytesIO:
         httpx.RequestError: If a network-related error occurs during the download.
     """
     async with httpx.AsyncClient() as client:
-        async with client.stream("GET", presigned_url) as response:
-            response.raise_for_status()
-            buffer = BytesIO()
-            async for chunk in response.aiter_bytes():
-                buffer.write(chunk)
-            return buffer
+        response = await client.get(presigned_url)
+        response.raise_for_status()
+        blob = BytesIO(response.content)
+        return blob

@@ -36,7 +36,8 @@ class ParseMetadata(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class ParseGroundingBox(BaseModel):
+class BoundingBox(BaseModel):
+    # coordinates are normalized between 0 and 1
     bottom: float
 
     left: float
@@ -47,7 +48,7 @@ class ParseGroundingBox(BaseModel):
 
 
 class ChunkGrounding(BaseModel):
-    box: ParseGroundingBox
+    box: BoundingBox
 
     page: int
 
@@ -76,29 +77,29 @@ class Chunk(BaseModel):
 #     model_config = ConfigDict(populate_by_name=True)
 
 
-class Grounding(BaseModel):
-    box: ParseGroundingBox
+# class Grounding(BaseModel):
+#     box: ParseGroundingBox
 
-    page: int
+#     page: int
 
-    type: Literal[
-        "chunkLogo",
-        "chunkCard",
-        "chunkAttestation",
-        "chunkScanCode",
-        "chunkForm",
-        "chunkTable",
-        "chunkFigure",
-        "chunkText",
-        "chunkMarginalia",
-        "chunkTitle",
-        "chunkPageHeader",
-        "chunkPageFooter",
-        "chunkPageNumber",
-        "chunkKeyValue",
-        "table",
-        "tableCell",
-    ]
+#     type: Literal[
+#         "chunkLogo",
+#         "chunkCard",
+#         "chunkAttestation",
+#         "chunkScanCode",
+#         "chunkForm",
+#         "chunkTable",
+#         "chunkFigure",
+#         "chunkText",
+#         "chunkMarginalia",
+#         "chunkTitle",
+#         "chunkPageHeader",
+#         "chunkPageFooter",
+#         "chunkPageNumber",
+#         "chunkKeyValue",
+#         "table",
+#         "tableCell",
+#     ]
 
 
 class Markdown(BaseModel):
@@ -111,12 +112,12 @@ class ParseResponse(Markdown):
 
     chunks: Optional[list[Chunk]] = None
 
-    metadata: Optional[ParseMetadata] = None
+    metadata: ParseMetadata = ParseMetadata()
 
     # we dont use the splits right now...
     # splits: List[Split]
 
-    grounding: Optional[dict[str, Grounding]] = None
+    # grounding: Optional[dict[str, Grounding]] = None
 
 
 # TODO: this information will be available in chunks
