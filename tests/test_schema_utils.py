@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from yorgan.utils import flat_json_schema_to_pydantic_model, resolve_openAPI_json_schema, json_schema_to_pydantic_model
-from yorgan.datamodels import Invoice
+from yorgan.document_models import Invoice
 import pytest
 
 
