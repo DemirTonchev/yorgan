@@ -397,7 +397,7 @@ Insert the following page break between consecutive pages:
         return combined_response
 
 
-class StructuredOutputService(BaseService[T]):
+class ExtractService(BaseService[T]):
     """
     Service that extracts structured output using a language model.
     """
@@ -410,7 +410,7 @@ class StructuredOutputService(BaseService[T]):
         **kwargs
     ) -> T:
         """
-        Cached entry point for extracting structured data.
+        Cached entry point for extracting structured output.
         Generates a structured Pydantic object from parsed content.
 
         Args:
@@ -433,7 +433,7 @@ class _StructuredOutputWrapper(BaseModel, Generic[R]):
     """
     extracted_data: R | None = Field(
         default=None,
-        description="The structured data extracted so far"
+        description="The structured output extracted so far"
     )
     notes: str = Field(
         default="",
@@ -441,9 +441,9 @@ class _StructuredOutputWrapper(BaseModel, Generic[R]):
     )
 
 
-class LLMStructuredOutputService(StructuredOutputService[T], LLMServiceMixin):
+class LLMExtractService(ExtractService[T], LLMServiceMixin):
     """
-    Structured output service that uses an LLM with a prompt template.
+    Extract service that uses an LLM with a prompt template.
 
     For PDFs with many pages (configurable threshold),
     this service processes pages iteratively in batches with a sliding window context.
@@ -539,7 +539,7 @@ Pages:
 
         def __init__(
             self,
-            parent_type: Type[LLMStructuredOutputService[T]],
+            parent_type: Type[LLMExtractService[T]],
             original_response_type: Type[T],
             llm: BaseLLM,
             model: str,
@@ -718,7 +718,7 @@ Pages:
         **kwargs
     ) -> T:
         """
-        Extract structured data from parsed content using the LLM.
+        Extract structured output from parsed content using the LLM.
 
         Args:
             filename: Name of the file being processed. The extension is used
@@ -749,7 +749,7 @@ Pages:
         **kwargs
     ) -> T:
         """
-        Extract structured data from parsed content.
+        Cached endpoint for extracting structured output from parsed content.
 
         For documents with pages above the threshold, process the pages in batches.
         The model maintains accumulated data and notes across pages.
@@ -832,7 +832,7 @@ class ParseExtractProtocol(Protocol[Q]):
 
 class ParseExtractService(BaseService[T]):
     """
-    Service that parses and extracts structured output in one step.
+    Service that parses and extracts in one step.
     """
 
     @cache_result(['filename'])
@@ -859,21 +859,21 @@ class ParseExtractService(BaseService[T]):
 class ParseExtractPipeline(Generic[T]):
     """
     An end-to-end document parsing pipeline using two steps: parse and extract.
-    It orchestrates a ParseService and a StructuredOutputService.
+    It orchestrates a ParseService and a ExtractService.
     """
 
     def __init__(
         self,
         parse_service: ParseService[PARSE_T],
-        structured_output_service: StructuredOutputService[T],
+        extract_service: ExtractService[T],
     ):
         """
         Args:
             parse_service: Service instance for the parse step
-            structured_output_service: Service instance for the extract step
+            extract_service: Service instance for the extract step
         """
         self.parse_service = parse_service
-        self.structured_output_service = structured_output_service
+        self.extract_service = extract_service
 
     async def __call__(
         self,
@@ -890,14 +890,14 @@ class ParseExtractPipeline(Generic[T]):
             content: Raw document content as bytes
 
         Returns:
-            Structured output as defined by the structured_output_service's response type
+            Structured output as defined by the extract_service's response type
         """
-        ocr_response = await self.parse_service(filename, content)
-        self.ocr_response = ocr_response
-        structured_output_response = await self.structured_output_service(filename, ocr_response)
-        self.structured_output_response = structured_output_response
+        parse_response = await self.parse_service(filename, content)
+        self.parse_response = parse_response
+        extract_response = await self.extract_service(filename, parse_response)
+        self.extract_response = extract_response
 
-        return structured_output_response
+        return extract_response
 
 
 class LLMParseExtractPipelineService(ParseExtractService[T]):
@@ -907,49 +907,49 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
 
     # Class attributes for provider-specific subclasses
     LLM_PARSE_SERVICE_TYPE: Optional[Type[LLMParseService[ParseResponse]]] = None
-    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE: Optional[Type[LLMStructuredOutputService[T]]] = None
+    LLM_EXTRACT_SERVICE_TYPE: Optional[Type[LLMExtractService[T]]] = None
 
     def __init__(
         self,
         response_type: Type[T],
         parse_service: Optional[LLMParseService[ParseResponse]] = None,
-        structured_output_service: Optional[LLMStructuredOutputService[T]] = None,
+        extract_service: Optional[LLMExtractService[T]] = None,
         cache: OptionalCacheType = None,
     ):
         """
         Args:
             response_type: The Pydantic model class for the service's response
             parse_service: Service instance for the parse step
-            structured_output_service: Service instance for the extract step
+            extract_service: Service instance for the extract step
             cache: Optional cache instance for storing results. Defaults to NullCache
         """
         super().__init__(response_type=response_type, cache=cache)
-        self.parse_service, self.structured_output_service = self._initialize_services(parse_service, structured_output_service)
-        self.pipeline = ParseExtractPipeline(parse_service=self.parse_service, structured_output_service=self.structured_output_service)
+        self.parse_service, self.extract_service = self._initialize_services(parse_service, extract_service)
+        self.pipeline = ParseExtractPipeline(parse_service=self.parse_service, extract_service=self.extract_service)
 
     def _initialize_services(
         self,
         parse_service: Optional[LLMParseService[ParseResponse]] = None,
-        structured_output_service: Optional[LLMStructuredOutputService[T]] = None,
+        extract_service: Optional[LLMExtractService[T]] = None,
     ) -> tuple[BaseLLM, str]:
         """
-        Initialize parse_service and structured_output service with fallback to defaults.
+        Initialize parse_service and extract_service with fallback to defaults.
 
         If parse_service is not provided, attempts to instantiate LLM_PARSE_SERVICE_TYPE.
-        If structured_output_service is not provided, attempts to instantiate LLM_STRUCTURED_OUTPUT_SERVICE_TYPE.
+        If extract_service is not provided, attempts to instantiate LLM_EXTRACT_SERVICE_TYPE.
 
         Args:
             parse_service: Service instance for the parse step.
                 If None, uses LLM_PARSE_SERVICE_TYPE
-            structured_output_service: Service instance for the extract step.
-                If None, uses LLM_STRUCTURED_OUTPUT_SERVICE_TYPE  
+            extract_service: Service instance for the extract step.
+                If None, uses LLM_EXTRACT_SERVICE_TYPE  
 
         Returns:
-            Tuple of (parse_service, structured_output_service) with defaults applied.
+            Tuple of (parse_service, extract_service) with defaults applied.
 
         Raises:
             ValueError: If parse_service is None and LLM_PARSE_SERVICE_TYPE is not set as a class attribute.
-            ValueError: If structured_output_service is None and LLM_STRUCTURED_OUTPUT_SERVICE_TYPE is not set as a class attribute.
+            ValueError: If extract_service is None and LLM_EXTRACT_SERVICE_TYPE is not set as a class attribute.
         """
         if parse_service is None:
             if self.LLM_PARSE_SERVICE_TYPE is not None:
@@ -959,15 +959,15 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
                     f"{self.__class__.__name__} requires either an 'parse_service' parameter or LLM_PARSE_SERVICE_TYPE to be set as a class attribute"
                 )
 
-        if structured_output_service is None:
-            if self.LLM_STRUCTURED_OUTPUT_SERVICE_TYPE is not None:
-                structured_output_service = self.LLM_STRUCTURED_OUTPUT_SERVICE_TYPE(response_type=self.response_type, cache=self.cache)
+        if extract_service is None:
+            if self.LLM_EXTRACT_SERVICE_TYPE is not None:
+                extract_service = self.LLM_EXTRACT_SERVICE_TYPE(response_type=self.response_type, cache=self.cache)
             else:
                 raise ValueError(
-                    f"{self.__class__.__name__} requires either an 'structured_output_service' parameter or LLM_STRUCTURED_OUTPUT_SERVICE_TYPE to be set as a class attribute"
+                    f"{self.__class__.__name__} requires either an 'extract_service' parameter or LLM_EXTRACT_SERVICE_TYPE to be set as a class attribute"
                 )
 
-        return parse_service, structured_output_service
+        return parse_service, extract_service
 
     async def __call__(
         self,
@@ -984,6 +984,6 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
             content: Raw document content as bytes
 
         Returns:
-            Structured output as defined by the structured_output_service's response type
+            Structured output as defined by the extract_service's response type
         """
         return await self.pipeline(filename, content)

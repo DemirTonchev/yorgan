@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     parse_llm: str = "gemini-2.5-flash"
     # parse_llms: dict[str, str] = "gemini-2.5-flash"
     # gpt_parse_llm: Optional[str] = "gpt-4.1"
-    # structured_output_llm: str = "gemini-2.5-flash"
+    # extract_llm: str = "gemini-2.5-flash"
 
     # parse_service_backend: str = "landingai"
 

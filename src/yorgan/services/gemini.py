@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from yorgan.datamodels import ParseResponse, ResponseMetadata
 
 from .base import (BaseLLM, LLMParseExtractPipelineService, LLMParseService,
-                   LLMStructuredOutputService)
+                   LLMExtractService)
 from .utils import get_mime_type
 
 T = TypeVar('T', bound=BaseModel)
@@ -125,10 +125,10 @@ class GeminiParseService(LLMParseService[ParseResponse]):
     LLM_TYPE = GeminiLLM
 
 
-class GeminiStructuredOutputService(LLMStructuredOutputService[T]):
+class GeminiExtractService(LLMExtractService[T]):
     LLM_TYPE = GeminiLLM
 
 
 class GeminiParseExtractPipelineService(LLMParseExtractPipelineService[T]):
     LLM_PARSE_SERVICE_TYPE = GeminiParseService
-    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE = GeminiStructuredOutputService
+    LLM_EXTRACT_SERVICE_TYPE = GeminiExtractService

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from yorgan.datamodels import ParseResponse, ResponseMetadata
 
 from .base import (BaseLLM, LLMParseExtractPipelineService, LLMParseService,
-                   LLMStructuredOutputService)
+                   LLMExtractService)
 from .utils import encode_bytes_for_transfer, get_mime_type
 
 T = TypeVar('T', bound=BaseModel)
@@ -142,10 +142,10 @@ class GPTParseService(LLMParseService[ParseResponse]):
     LLM_TYPE = GPTLLM
 
 
-class GPTStructuredOutputService(LLMStructuredOutputService[T]):
+class GPTExtractService(LLMExtractService[T]):
     LLM_TYPE = GPTLLM
 
 
 class GPTParseExtractPipelineService(LLMParseExtractPipelineService[T]):
     LLM_PARSE_SERVICE_TYPE = GPTParseService
-    LLM_STRUCTURED_OUTPUT_SERVICE_TYPE = GPTStructuredOutputService
+    LLM_EXTRACT_SERVICE_TYPE = GPTExtractService
