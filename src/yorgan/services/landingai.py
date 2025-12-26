@@ -11,7 +11,7 @@ from yorgan.datamodels import ParseResponse
 from yorgan.cache import cache_result
 from yorgan.services.utils import count_pdf_pages, download_blob
 
-from .base import ParseService  # , StructuredOutputService future implementation
+from .base import ParseService  # , ExtractService future implementation
 
 if TYPE_CHECKING:
     from aiocache.base import BaseCache

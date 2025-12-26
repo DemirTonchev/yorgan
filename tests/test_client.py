@@ -9,7 +9,7 @@ from yorgan.datamodels import ParseResponse
 # Fake responses keyed by path suffix
 RESPONSES = {
     "/parse": {"markdown": "# Title: Yorgan", "metadata": {"filename": "doc.pdf", "duration_ms": 1000}},
-    "/extract": {"extraction": {"title": "Yorgan"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiStructuredOutputService"}},
+    "/extract": {"extraction": {"title": "Yorgan"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiExtractService"}},
     "/parse-extract": {"extraction": {"title": "Yorgan"}, "metadata": {"filename": "doc.pdf", "duration_ms": 1000, "used_service": "GeminiParseExtractService"}},
     "/schema/validate": {"success": True, "message": "Schema is valid"},
     "/options": {"parse": ["gemini", "gpt", "landingai"], "extract": ["gemini", "gpt"], "parse-extract": ["gemini", "gpt"]},
@@ -105,7 +105,7 @@ def test_sync_client_endpoints(monkeypatch, tmp_path):
     # The fake extract returns extraction.markdown == "# Title"
     assert extracted.extraction["title"] == "Yorgan"
     assert extracted.metadata["filename"] == "doc.pdf"
-    assert extracted.metadata["used_service"] == "GeminiStructuredOutputService"
+    assert extracted.metadata["used_service"] == "GeminiExtractService"
 
     # parse_extract
     parsed_extracted = client.parse_extract(document=fpath, response_model=ParseResponse)
@@ -141,7 +141,7 @@ async def test_async_client_endpoints(monkeypatch, tmp_path):
 
         extracted = await client.extract(markdown="# hello", response_model=Extraction)
         assert extracted.extraction["title"] == "Yorgan"
-        assert extracted.metadata["used_service"] == "GeminiStructuredOutputService"
+        assert extracted.metadata["used_service"] == "GeminiExtractService"
 
         parsed_extracted = await client.parse_extract(document=fpath, response_model=Extraction)
         assert parsed_extracted.extraction["title"] == "Yorgan"

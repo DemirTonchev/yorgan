@@ -89,12 +89,11 @@ async def parse(
         service_options: Annotated[str, Form()] = "{}",
 ) -> APIParseResponse:
     """
-    Parses an uploaded document using OCR and returns the response from OCR.
+    Parses an uploaded document using OCR and returns the parsed text/markdown.
 
     Parameters
     - file (UploadFile): Required. The uploaded file to parse (e.g. PDF, image). Provided by FastAPI via multipart/form-data.
-    - option (str | ParseServiceOptions): Optional. Service selector for parsing backend. Supported values: "landingai", "gemini", "auto".
-        Defaults to "auto". Controls which underlying parse service is used.
+    - option (str | ParseServiceOptions): Optional. Service selector for parse backend.
     - service_options (str): Optional. A JSON string containing options for the service (e.g. {"model": "...", "prompt": "..."}).
 
     Returns
@@ -125,8 +124,8 @@ async def parse(
 
     filename_key = generate_hashed_filename(filename, content)
     try:
-        parsed_response = await parse_service(filename=filename_key, content=content)
-        api_response = APIParseResponse(**parsed_response.model_dump())
+        parse_response = await parse_service(filename=filename_key, content=content)
+        api_response = APIParseResponse(**parse_response.model_dump())
         api_response.metadata.filename = filename
 
     except Exception as e:
@@ -147,7 +146,7 @@ async def extract(
     service_options: Annotated[str, Form()] = "{}",
 ) -> APIExtractResponse:
     """
-    Extract structured data from a document markdown using a provided JSON Schema.
+    Extracts structured data from a document markdown using a provided JSON Schema.
 
     Parameters
     - markdown (str): Required. The document text (e.g. OCR markdown) to extract data from.
@@ -157,7 +156,7 @@ async def extract(
     - metadata (str): Optional. A JSON string containing arbitrary metadata about the request
         (for example {"filename": "invoice.pdf"}). This metadata is merged into the response
         and used when generating cache keys.
-    - option (str): Optional. Parse/extraction service selector. Currently accepted but not actively used inside this endpoint.
+    - option (str): Optional. Service selector for extract backend.
 
     Returns
     - APIExtractResponse: JSONResponse containing:
@@ -197,7 +196,7 @@ async def extract(
     # json_dumps again is not ideal but we want to sort the keys right to guarantee same hash
     filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + markdown.encode())
 
-    structured_output = await extract_service(
+    extract_response = await extract_service(
         filename=filename_key,
         parse_response=ParseResponse(markdown=markdown)
     )
@@ -208,7 +207,7 @@ async def extract(
             "duration_ms": (time.perf_counter() - start_ts) * 1000,
         }
     )
-    api_response = APIExtractResponse(extraction=structured_output, metadata=metadata)
+    api_response = APIExtractResponse(extraction=extract_response, metadata=metadata)
     return ORJSONResponse(api_response.model_dump(mode='json'))
 
 
@@ -220,7 +219,7 @@ async def parse_extract(
     service_options: Annotated[str, Form()] = "{}",
 ) -> APIExtractResponse:
     """
-    Parses an uploaded document and returns a structured DocumentModel based on the provided JSON Schema.
+    Parses an uploaded document and extracts structured data based on the provided JSON Schema.
 
     Parameters
     - file (UploadFile): Required. The uploaded file to parse (PDF/image). Provided via multipart/form-data.
@@ -235,7 +234,7 @@ async def parse_extract(
         - metadata: Dict with runtime info such as filename, used_service, and duration_ms.
 
     Errors
-    - Raises HTTPException(400) when input schema is invalid or extraction/parsing fails.
+    - Raises HTTPException(400) when input schema is invalid or parsing/extraction fails.
 
     Example (curl)
     curl -X POST "http://localhost:8000/parse-extract" \
@@ -264,13 +263,13 @@ async def parse_extract(
     filename_key = generate_hashed_filename(filename, content=json_dumps(schema, sort_keys=True).encode() + content)
 
     parse_extract_service = get_parse_extract_service(option, response_type=ExtractionModel, cache=CACHE, **service_kwargs)
-    structured_output = await parse_extract_service(filename=filename_key, content=content)
+    parse_extract_response = await parse_extract_service(filename=filename_key, content=content)
     metadata = {
         "filename": filename,
         "used_service": parse_extract_service.service_name,
         "duration_ms": (time.perf_counter() - start_ts) * 1000,
     }
-    api_response = APIExtractResponse(extraction=structured_output, metadata=metadata)
+    api_response = APIExtractResponse(extraction=parse_extract_response, metadata=metadata)
     return ORJSONResponse(api_response.model_dump(mode='json'))
 
 

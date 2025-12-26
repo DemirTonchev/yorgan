@@ -5,7 +5,7 @@ import importlib
 from pathlib import Path
 from typing import Any, Optional, TypeVar, Generic, Union, cast
 import inspect
-from .base import BaseService, ParseService, StructuredOutputService, ParseExtractService
+from .base import BaseService, ParseService, ExtractService, ParseExtractService
 
 T = TypeVar("T", bound=BaseService)
 
@@ -131,7 +131,7 @@ class Registry(Generic[T]):
 
 AnyServiceRegistry = Union[
     Registry[ParseService],
-    Registry[StructuredOutputService],
+    Registry[ExtractService],
     Registry[ParseExtractService]
 ]
 
@@ -143,7 +143,7 @@ class ServiceRegistries:
 
     def __init__(self) -> None:
         self._parse: Optional[Registry[ParseService]] = None
-        self._structured: Optional[Registry[StructuredOutputService]] = None
+        self._extract: Optional[Registry[ExtractService]] = None
         self._parse_extract: Optional[Registry[ParseExtractService]] = None
 
     def _load_registry(
@@ -168,10 +168,10 @@ class ServiceRegistries:
         return self._parse
 
     @property
-    def structured(self) -> Registry[StructuredOutputService]:
-        """Get or create the structured output registry"""
-        self._structured = self._load_registry(self._structured, StructuredOutputService)
-        return self._structured
+    def extract(self) -> Registry[ExtractService]:
+        """Get or create the extract registry"""
+        self._extract = self._load_registry(self._extract, ExtractService)
+        return self._extract
 
     @property
     def parse_extract(self) -> Registry[ParseExtractService]:
@@ -185,7 +185,7 @@ class ServiceRegistries:
         Useful for eager loading during application startup to catch import errors early.
         """
         _ = self.parse
-        _ = self.structured
+        _ = self.extract
         _ = self.parse_extract
 
     def clear_all(self) -> None:
@@ -195,20 +195,20 @@ class ServiceRegistries:
         """
         if self._parse:
             self._parse.clear()
-        if self._structured:
-            self._structured.clear()
+        if self._extract:
+            self._extract.clear()
         if self._parse_extract:
             self._parse_extract.clear()
 
         self._parse = None
-        self._structured = None
+        self._extract = None
         self._parse_extract = None
 
     def get_all(self) -> dict[str, AnyServiceRegistry]:
         """Get all initialized registries as a dictionary."""
         return {
             "parse": self.parse,
-            "structured": self.structured,
+            "extract": self.extract,
             "parse_extract": self.parse_extract,
         }
 
@@ -223,7 +223,7 @@ class ServiceRegistries:
         parts: list[str] = []
         for name, reg in (
             ("parse", self.parse),
-            ("structured", self.structured),
+            ("extract", self.extract),
             ("parse_extract", self.parse_extract),
         ):
             parts.append(f"{name}={repr(reg)}")
@@ -244,8 +244,8 @@ def get_parse_registry() -> Registry[ParseService]:
     return get_registries().parse
 
 
-def get_structured_registry() -> Registry[StructuredOutputService]:
-    return get_registries().structured
+def get_extract_registry() -> Registry[ExtractService]:
+    return get_registries().extract
 
 
 def get_extract_registry() -> Registry[ParseExtractService]:

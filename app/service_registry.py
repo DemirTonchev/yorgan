@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Annotated, Any, Optional, TYPE_CHECKING, Type, TypeVar, overload, Literal, cast
 from pydantic import BaseModel
 from enum import StrEnum
-from yorgan.services import ParseService, StructuredOutputService, ParseExtractService
+from yorgan.services import ParseService, ExtractService, ParseExtractService
 from yorgan.services.registry import ServiceRegistries
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ _registy = ServiceRegistries()
 
 
 ParseServiceOptions = StrEnum("ParseServiceOptions", " ".join(_registy.parse.list_modules()))
-ExctractServiceOptions = StrEnum("ExctractServiceOptions", " ".join(_registy.structured.list_modules()))
+ExctractServiceOptions = StrEnum("ExctractServiceOptions", " ".join(_registy.extract.list_modules()))
 ParseExctractServiceOptions = StrEnum("ParseExctractServiceOptions", " ".join(_registy.parse_extract.list_modules()))
 
 
@@ -56,8 +56,8 @@ def get_extract_service(
     response_type: Type[T],
     cache: Optional[BaseCache] = None,
     **kwargs: Any
-) -> StructuredOutputService[T]:
-    _extract_registry = _registy.structured.get_module_service_map()
+) -> ExtractService[T]:
+    _extract_registry = _registy.extract.get_module_service_map()
 
     if option not in _extract_registry:
         raise ValueError(f"Unknown Extract service or service can't load: {option}")
