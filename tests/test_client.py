@@ -121,7 +121,7 @@ def test_sync_client_endpoints(monkeypatch, tmp_path):
     opts = client.get_options()
     assert "parse" in opts and "extract" in opts and "parse-extract" in opts
     info = client.get_info()
-    assert info["version"] == "1.0.0"
+    assert info["version"] == "0.1.0"
 
 
 # async test?
@@ -154,4 +154,4 @@ async def test_async_client_endpoints(monkeypatch, tmp_path):
         opts = await client.get_options()
         assert "parse" in opts and "extract" in opts and "parse-extract" in opts
         info = await client.get_info()
-        assert info["version"] == "1.0.0"
+        assert info["version"] == "0.1.0"
