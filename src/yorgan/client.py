@@ -1,13 +1,12 @@
-from enum import StrEnum
-from functools import lru_cache
 import json
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal, Optional, Type, TypeVar, cast, overload
-from landingai_ade.types import ParseResponse as LandingParseResponse
+from typing import Optional, Type, TypeVar, cast
+
 import httpx
 from pydantic import BaseModel
 
-from yorgan.datamodels import APIExtractResponse, ParseResponseMetaData, SchemaDict
+from yorgan.datamodels import APIExtractResponse, APIParseResponse, SchemaDict
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -108,19 +107,6 @@ class _RequestBuilder:
         return {"schema": json.dumps(schema)}
 
 
-class _ResponseHandler:
-
-    @staticmethod
-    def handle_parse_response(response: httpx.Response, option: str) -> ParseResponseMetaData | LandingParseResponse:
-        if option == "landingai":
-            return LandingParseResponse.model_validate_json(response.text, by_name=True)
-        return ParseResponseMetaData.model_validate_json(response.text)
-
-    @staticmethod
-    def handle_extract_response(response: httpx.Response):
-        return APIExtractResponse.model_validate_json(response.text)
-
-
 class YorganSyncClient:
     def __init__(
         self,
@@ -130,7 +116,6 @@ class YorganSyncClient:
         self.base_url = base_url.rstrip("/")
         self.client = httpx.Client(timeout=timeout)
         self._builder = _RequestBuilder()
-        self._handler = _ResponseHandler()
 
     def __enter__(self):
         return self
@@ -141,29 +126,13 @@ class YorganSyncClient:
     def close(self):
         self.client.close()
 
-    @overload
-    def parse(
-        self,
-        document: Path | None = ...,
-        document_url: str | None = ...,
-        option: Literal["landingai"] = ...,
-    ) -> LandingParseResponse: ...
-
-    @overload
-    def parse(
-        self,
-        document: Optional[Path] = ...,
-        document_url: Optional[str] = ...,
-        option: str = ...,
-    ) -> ParseResponseMetaData: ...
-
     def parse(
         self,
         document: Optional[Path] = None,
         document_url: Optional[str] = None,
         option: str = "landingai",
         service_options: Optional[dict] = None,
-    ) -> ParseResponseMetaData | LandingParseResponse:
+    ) -> APIParseResponse:
         files, data = self._builder.build_parse_request(document, document_url, option, service_options)
         response = self.client.post(
             f"{self.base_url}/parse",
@@ -171,7 +140,7 @@ class YorganSyncClient:
             data=data,
         )
         response.raise_for_status()
-        return self._handler.handle_parse_response(response, option)
+        return APIParseResponse.model_validate_json(response.text)
 
     def extract(
         self,
@@ -190,7 +159,7 @@ class YorganSyncClient:
         )
         response = self.client.post(f"{self.base_url}/extract", data=data)
         response.raise_for_status()
-        return self._handler.handle_extract_response(response)
+        return APIExtractResponse.model_validate_json(response.text)
 
     def parse_extract(
         self,
@@ -210,7 +179,7 @@ class YorganSyncClient:
             data=data,
         )
         response.raise_for_status()
-        return APIExtractResponse(**response.json())
+        return APIExtractResponse.model_validate_json(response.text)
 
     def validate_schema(self, schema: dict) -> dict:
         data = self._builder.build_validate_schema_request(schema)
@@ -239,7 +208,6 @@ class YorganAsyncClient:
         self.base_url = base_url.rstrip("/")
         self.client = httpx.AsyncClient(timeout=timeout)
         self._builder = _RequestBuilder()
-        self._handler = _ResponseHandler()
 
     async def __aenter__(self):
         return self
@@ -250,30 +218,13 @@ class YorganAsyncClient:
     async def close(self):
         await self.client.aclose()
 
-    @overload
-    async def parse(
-        self,
-        document: Path | None = ...,
-        document_url: str | None = ...,
-        option: Literal["landingai"] = "landingai",
-    ) -> LandingParseResponse: ...
-
-    @overload
-    async def parse(
-        self,
-        document: Optional[Path] = ...,
-        document_url: Optional[str] = ...,
-        *,
-        option: str,
-    ) -> ParseResponseMetaData: ...
-
     async def parse(
         self,
         document: Optional[Path] = None,
         document_url: Optional[str] = None,
         option: str = "landingai",
         service_options: Optional[dict] = None,
-    ) -> LandingParseResponse | ParseResponseMetaData:
+    ) -> APIParseResponse:
         files, data = self._builder.build_parse_request(document, document_url, option, service_options)
         response = await self.client.post(
             f"{self.base_url}/parse",
@@ -281,7 +232,7 @@ class YorganAsyncClient:
             data=data,
         )
         response.raise_for_status()
-        return self._handler.handle_parse_response(response, option)
+        return APIParseResponse.model_validate_json(response.text)
 
     async def extract(
         self,
@@ -300,7 +251,7 @@ class YorganAsyncClient:
         )
         response = await self.client.post(f"{self.base_url}/extract", data=data)
         response.raise_for_status()
-        return self._handler.handle_extract_response(response)
+        return APIExtractResponse.model_validate_json(response.text)
 
     async def parse_extract(
         self,
@@ -320,7 +271,7 @@ class YorganAsyncClient:
             data=data,
         )
         response.raise_for_status()
-        return APIExtractResponse(**response.json())
+        return APIExtractResponse.model_validate_json(response.text)
 
     async def validate_schema(self, schema: dict) -> dict:
         data = self._builder.build_validate_schema_request(schema)
