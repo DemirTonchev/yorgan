@@ -18,8 +18,8 @@ _registy = ServiceRegistries()
 
 
 ParseServiceOptions = StrEnum("ParseServiceOptions", " ".join(_registy.parse.list_modules()))
-ExctractServiceOptions = StrEnum("ExctractServiceOptions", " ".join(_registy.extract.list_modules()))
-ParseExctractServiceOptions = StrEnum("ParseExctractServiceOptions", " ".join(_registy.parse_extract.list_modules()))
+ExtractServiceOptions = StrEnum("ExtractServiceOptions", " ".join(_registy.extract.list_modules()))
+ParseExtractServiceOptions = StrEnum("ParseExtractServiceOptions", " ".join(_registy.parse_extract.list_modules()))
 
 
 @overload
@@ -52,7 +52,7 @@ def get_parse_service(
 
 @lru_cache(maxsize=10)
 def get_extract_service(
-    option: ExctractServiceOptions,
+    option: ExtractServiceOptions,
     response_type: Type[T],
     cache: Optional[BaseCache] = None,
     **kwargs: Any
@@ -68,7 +68,7 @@ def get_extract_service(
 
 @lru_cache(maxsize=10)
 def get_parse_extract_service(
-        option: ParseExctractServiceOptions,
+        option: ParseExtractServiceOptions,
         response_type: Type[T],
         cache: Optional[BaseCache] = None,
         **kwargs: Any

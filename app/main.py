@@ -142,7 +142,7 @@ async def extract(
     markdown: Annotated[str, Form()],
     schema: Annotated[str, Form()],
     metadata: Annotated[str, Form()] = "{}",
-    option: ExctractServiceOptions = "gemini",
+    option: ExtractServiceOptions = "gemini",
     service_options: Annotated[str, Form()] = "{}",
 ) -> APIExtractResponse:
     """
@@ -300,8 +300,8 @@ async def validate_schema(schema: Annotated[str, Form()]):
 async def get_parse_options():
     return {
         "parse": ParseServiceOptions._member_names_,
-        "extract": ExctractServiceOptions._member_names_,
-        "parse-extract": ParseExctractServiceOptions._member_names_,
+        "extract": ExtractServiceOptions._member_names_,
+        "parse-extract": ParseExtractServiceOptions._member_names_,
     }
 
 
