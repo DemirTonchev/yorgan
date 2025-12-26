@@ -88,7 +88,7 @@ async def parse(
         curl -X POST "http://localhost:8000/parse" \
           -F "file=@/path/to/document.pdf" \
           -F "option=gemini" \
-          -F 'service_options={"model": "gemini-2.5-pro", "prompt": "You are ..."}'
+          -F 'service_options={"model": "gemini-2.5-flash", "prompt": "You are ..."}'
     """
 
     try:
