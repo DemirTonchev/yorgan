@@ -926,7 +926,7 @@ class LLMParseExtractPipelineService(ParseExtractService[T]):
         self,
         parse_service: Optional[LLMParseService[ParseResponse]] = None,
         extract_service: Optional[LLMExtractService[T]] = None,
-    ) -> tuple[BaseLLM, str]:
+    ) -> tuple[LLMParseService[ParseResponse], LLMExtractService[T]]:
         """
         Initialize parse_service and extract_service with fallback to defaults.
 
