@@ -14,11 +14,6 @@ if TYPE_CHECKING:
     OptionalCacheType = Optional[BaseCache | SimpleMemoryCacheWithPersistence]
 
 
-class HasMarkdown(Protocol):
-    """A protocol for any object that has a 'markdown' string attribute."""
-    markdown: str
-
-
 T = TypeVar('T', bound=BaseModel)
 S = TypeVar('S', bound=BaseModel)
 R = TypeVar('R', bound=BaseModel)
